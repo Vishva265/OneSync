@@ -1,0 +1,616 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User roles
+enum UserRole {
+  ADMIN
+  PROJECT_MANAGER
+  TEAM_MEMBER
+  FINANCE
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum ProjectType {
+  FIXED_PRICE
+  TIME_AND_MATERIALS
+  RETAINER
+}
+
+enum TaskState {
+  NEW
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum DocumentStatus {
+  DRAFT
+  SUBMITTED
+  POSTED
+  PAID
+  CANCELLED
+  ARCHIVED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+// ============================================================================
+// Core Entities
+// ============================================================================
+
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  passwordHash        String
+  fullName            String
+  role                UserRole @default(TEAM_MEMBER)
+  status              UserStatus @default(ACTIVE)
+  defaultHourlyRate   Decimal  @default(50) @db.Decimal(10, 2)
+  timezone            String   @default("UTC")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  projectsAsManager   Project[] @relation("ProjectManager")
+  projectsAsTeamMember ProjectTeamMember[]
+  timesheets          Timesheet[]
+  expenses            Expense[]
+  tasksAssigned       Task[] @relation("TaskAssignee")
+  comments            Comment[]
+  attachmentsCreated  Attachment[] @relation("CreatedBy")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Project {
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  name                String
+  description         String?
+  customerId          String?
+  projectManagerId    String
+  projectManager      User     @relation("ProjectManager", fields: [projectManagerId], references: [id])
+  
+  // Timeline & financials
+  startDate           DateTime
+  endDate             DateTime?
+  budgetAmount        Decimal? @db.Decimal(15, 2)
+  currency            String   @default("USD")
+  billableFlag        Boolean  @default(true)
+  defaultHourlyRate   Decimal? @db.Decimal(10, 2)
+  
+  // Status & type
+  status              ProjectStatus @default(PLANNING)
+  projectType         ProjectType @default(TIME_AND_MATERIALS)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  teamMembers         ProjectTeamMember[]
+  tasks               Task[]
+  milestones          Milestone[]
+  timesheets          Timesheet[]
+  expenses            Expense[]
+  salesOrders         SalesOrder[]
+  purchaseOrders      PurchaseOrder[]
+  customerInvoices    CustomerInvoice[]
+  vendorBills         VendorBill[]
+  attachments         Attachment[]
+  comments            Comment[]
+
+  @@index([projectManagerId])
+  @@index([status])
+  @@index([code])
+}
+
+model ProjectTeamMember {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("TEAM_MEMBER")
+  addedAt     DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Task {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  title           String
+  description     String?
+  state           TaskState @default(NEW)
+  priority        TaskPriority @default(MEDIUM)
+  
+  assigneeId      String?
+  assignee        User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  
+  estimateHours   Decimal? @db.Decimal(10, 2)
+  dueDate         DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  timesheets      Timesheet[]
+  comments        Comment[]
+  attachments     Attachment[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([state])
+}
+
+model Milestone {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  name            String
+  description     String?
+  status          MilestoneStatus @default(PENDING)
+  
+  amount          Decimal  @db.Decimal(15, 2)
+  invoiced        Boolean  @default(false)
+  invoiceId       String?
+  
+  dueDate         DateTime?
+  completedDate   DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model Timesheet {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  taskId          String?
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  
+  workDate        DateTime
+  durationHours   Decimal  @db.Decimal(10, 2)
+  hourlyRate      Decimal  @db.Decimal(10, 2)
+  amount          Decimal  @db.Decimal(15, 2) // calculated: duration * rate
+  
+  billable        Boolean  @default(false)
+  notes           String?
+  status          TimesheetStatus @default(DRAFT)
+  
+  // Invoicing
+  invoiced        Boolean  @default(false)
+  invoiceId       String?
+  invoice         CustomerInvoice? @relation("TimesheetInvoice", fields: [invoiceId], references: [id], onDelete: SetNull)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  invoiceLines    InvoiceLine[] @relation("TimesheetLine")
+  comments        Comment[]
+  attachments     Attachment[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([status])
+  @@index([invoiced])
+}
+
+model Expense {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  amount          Decimal  @db.Decimal(15, 2)
+  currency        String   @default("USD")
+  date            DateTime
+  category        String
+  
+  billable        Boolean  @default(false)
+  status          ExpenseStatus @default(DRAFT)
+  reimbursed      Boolean  @default(false)
+  
+  receiptUrl      String?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  invoiceLines    InvoiceLine[] @relation("ExpenseLine")
+  attachments     Attachment[]
+  comments        Comment[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([status])
+  @@index([billable])
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  name            String
+  description     String?
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  type            String   @default("SERVICE") // SERVICE, PRODUCT, etc.
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  soLines         SalesOrderLine[]
+  poLines         PurchaseOrderLine[]
+
+  @@index([sku])
+}
+
+// ============================================================================
+// Sales & Purchase Documents
+// ============================================================================
+
+model SalesOrder {
+  id              String   @id @default(cuid())
+  number          String   @unique
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  customerId      String?
+  customerName    String?
+  
+  status          DocumentStatus @default(DRAFT)
+  totalAmount     Decimal  @db.Decimal(15, 2)
+  currency        String   @default("USD")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  lines           SalesOrderLine[]
+  invoices        CustomerInvoice[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model SalesOrderLine {
+  id              String   @id @default(cuid())
+  soId            String
+  salesOrder      SalesOrder @relation(fields: [soId], references: [id], onDelete: Cascade)
+  
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  amount          Decimal  @db.Decimal(15, 2)
+
+  @@index([soId])
+  @@index([productId])
+}
+
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  number          String   @unique
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  vendorId        String?
+  vendorName      String?
+  
+  status          DocumentStatus @default(DRAFT)
+  totalAmount     Decimal  @db.Decimal(15, 2)
+  currency        String   @default("USD")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  lines           PurchaseOrderLine[]
+  vendorBills     VendorBill[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model PurchaseOrderLine {
+  id              String   @id @default(cuid())
+  poId            String
+  purchaseOrder   PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  amount          Decimal  @db.Decimal(15, 2)
+
+  @@index([poId])
+  @@index([productId])
+}
+
+// ============================================================================
+// Customer Invoices
+// ============================================================================
+
+model CustomerInvoice {
+  id              String   @id @default(cuid())
+  number          String   @unique
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  sourceSoId      String?
+  sourceSalesOrder SalesOrder? @relation(fields: [sourceSoId], references: [id], onDelete: SetNull)
+  
+  status          DocumentStatus @default(DRAFT)
+  totalAmount     Decimal  @db.Decimal(15, 2)
+  currency        String   @default("USD")
+  
+  dueDate         DateTime?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  invoiceLines    InvoiceLine[]
+  timesheets      Timesheet[] @relation("TimesheetInvoice")
+  attachments     Attachment[]
+  comments        Comment[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([sourceSoId])
+}
+
+model InvoiceLine {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  invoice         CustomerInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  // Optional: link to origin documents (for audit trail)
+  timesheetId     String?
+  timesheet       Timesheet? @relation("TimesheetLine", fields: [timesheetId], references: [id], onDelete: SetNull)
+  
+  expenseId       String?
+  expense         Expense? @relation("ExpenseLine", fields: [expenseId], references: [id], onDelete: SetNull)
+  
+  // Line details (snapshot of state at invoice creation)
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  amount          Decimal  @db.Decimal(15, 2)
+  
+  createdAt       DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([timesheetId])
+  @@index([expenseId])
+}
+
+// ============================================================================
+// Vendor Bills
+// ============================================================================
+
+model VendorBill {
+  id              String   @id @default(cuid())
+  number          String   @unique
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  sourcePo        String?
+  sourcePurchaseOrder PurchaseOrder? @relation(fields: [sourcePo], references: [id], onDelete: SetNull)
+  
+  vendorId        String?
+  vendorName      String?
+  
+  status          DocumentStatus @default(DRAFT)
+  totalAmount     Decimal  @db.Decimal(15, 2)
+  currency        String   @default("USD")
+  
+  dueDate         DateTime?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  billLines       BillLine[]
+  attachments     Attachment[]
+  comments        Comment[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([sourcePo])
+}
+
+model BillLine {
+  id              String   @id @default(cuid())
+  billId          String
+  vendorBill      VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  amount          Decimal  @db.Decimal(15, 2)
+  
+  createdAt       DateTime @default(now())
+
+  @@index([billId])
+}
+
+// ============================================================================
+// Collaboration & Attachments
+// ============================================================================
+
+model Attachment {
+  id              String   @id @default(cuid())
+  
+  // Polymorphic relation - store entityType and entityId
+  entityType      String // PROJECT, TASK, TIMESHEET, EXPENSE, INVOICE, etc.
+  entityId        String
+  
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  taskId          String?
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  
+  timesheetId     String?
+  timesheet       Timesheet? @relation(fields: [timesheetId], references: [id], onDelete: SetNull)
+  
+  expenseId       String?
+  expense         Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  
+  invoiceId       String?
+  invoice         CustomerInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  
+  billId          String?
+  bill            VendorBill? @relation(fields: [billId], references: [id], onDelete: SetNull)
+  
+  fileName        String
+  fileSize        Int
+  mimeType        String
+  s3Url           String   // AWS S3 or compatible storage
+  
+  createdById     String
+  createdBy       User     @relation("CreatedBy", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([createdById])
+}
+
+model Comment {
+  id              String   @id @default(cuid())
+  
+  // Polymorphic
+  entityType      String // TASK, PROJECT, TIMESHEET, EXPENSE, etc.
+  entityId        String
+  
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  taskId          String?
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  
+  timesheetId     String?
+  timesheet       Timesheet? @relation(fields: [timesheetId], references: [id], onDelete: SetNull)
+  
+  expenseId       String?
+  expense         Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  
+  invoiceId       String?
+  invoice         CustomerInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  
+  billId          String?
+  bill            VendorBill? @relation(fields: [billId], references: [id], onDelete: SetNull)
+  
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+  
+  content         String
+  mentions        String[] // JSON array of user IDs mentioned
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([authorId])
+}
+
+// ============================================================================
+// Audit & Compliance
+// ============================================================================
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  
+  action          String // CREATE, UPDATE, DELETE, APPROVE, REJECT, POST, etc.
+  entityType      String // PROJECT, TASK, INVOICE, TIMESHEET, etc.
+  entityId        String
+  
+  userId          String?
+  details         String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([action])
+  @@index([createdAt])
+}
