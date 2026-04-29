@@ -1,46 +1,148 @@
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
 import { projectsApi } from "@/api/projects"
 import type { Project, ProjectFinancials } from "@/types"
-import { Card } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Link } from "react-router-dom"
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Target, 
-  FileText,
+import {
+  AlertCircle,
+  ArrowUpRight,
+  CheckCircle2,
   Clock,
+  DollarSign,
+  FileText,
   Receipt,
   ShoppingCart,
-  CheckCircle2,
-  AlertCircle,
-  ArrowUpRight
+  Target,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react"
+
+type TabKey = "overview" | "costs" | "milestones" | "budget"
+
+const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: "overview", label: "Overview" },
+  { key: "costs", label: "Costs" },
+  { key: "milestones", label: "Milestones" },
+  { key: "budget", label: "Budget" },
+]
+
+const money = (value: any) => `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+
+function pct(value: number) {
+  return `${Number(value || 0).toFixed(1)}%`
+}
+
+function healthInfo(financials: ProjectFinancials) {
+  if (financials.budgetUsed > 90) {
+    return {
+      label: "Critical",
+      icon: AlertCircle,
+      badge: "bg-[#fee2e2] text-[#b91c1c]",
+      bar: "bg-[#dc2626]",
+      note: "Budget almost exhausted",
+    }
+  }
+  if (financials.budgetUsed > 75) {
+    return {
+      label: "Warning",
+      icon: AlertCircle,
+      badge: "bg-[#fef9c3] text-[#854d0e]",
+      bar: "bg-[#f59e0b]",
+      note: "Approaching budget limit",
+    }
+  }
+  return {
+    label: "Healthy",
+    icon: CheckCircle2,
+    badge: "bg-[#dcfce7] text-[#15803d]",
+    bar: "bg-[#16a34a]",
+    note: "Within budget",
+  }
+}
+
+function KpiCard({
+  label,
+  value,
+  note,
+  icon: Icon,
+  tone,
+}: {
+  label: string
+  value: string | number
+  note: string
+  icon: typeof DollarSign
+  tone: { card: string; icon: string; value: string; strip: string }
+}) {
+  return (
+    <article className={`relative overflow-hidden rounded-xl border border-[#d8e3f2] ${tone.card} p-[18px] shadow-[0_6px_18px_rgba(15,42,82,0.06)]`}>
+      <div className={`absolute inset-x-0 top-0 h-1 ${tone.strip}`} />
+      <div className="mb-[6px] flex items-center justify-between gap-3">
+        <span className="text-xs text-[#64748b]">{label}</span>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone.icon}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className={`text-[26px] font-semibold leading-[1.3] ${tone.value}`}>{value}</div>
+      <div className="mt-1 text-[11px] text-[#64748b]">{note}</div>
+    </article>
+  )
+}
+
+function CountCard({ label, value, icon: Icon }: { label: string; value: number; icon: typeof FileText }) {
+  return (
+    <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#1a3c6e] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="text-[26px] font-semibold leading-[1.3] text-[#0f172a]">{value}</div>
+      <div className="mt-1 text-xs text-[#64748b]">{label}</div>
+    </div>
+  )
+}
+
+function ProgressRow({
+  label,
+  value,
+  amount,
+  color,
+}: {
+  label: string
+  value: number
+  amount: string
+  color: string
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex justify-between gap-4 text-sm">
+        <span className="font-medium text-[#0f172a]">{label}</span>
+        <span className="text-[#64748b]">{amount}</span>
+      </div>
+      <div className="h-3 overflow-hidden rounded-full bg-[#e2e8f0]">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(3, Math.min(100, value))}%` }} />
+      </div>
+    </div>
+  )
+}
 
 export default function FinancialDashboard() {
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProject, setSelectedProject] = useState<string>("")
+  const [selectedProject, setSelectedProject] = useState("")
   const [financials, setFinancials] = useState<ProjectFinancials | null>(null)
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabKey>("overview")
 
   useEffect(() => {
     fetchProjects()
   }, [])
 
   useEffect(() => {
-    if (selectedProject) {
-      fetchFinancials(selectedProject)
-    }
+    if (selectedProject) fetchFinancials(selectedProject)
   }, [selectedProject])
 
   const fetchProjects = async () => {
     try {
       const response = await projectsApi.getAll()
       setProjects(response.data)
-      if (response.data.length > 0) {
-        setSelectedProject(response.data[0].id)
-      }
+      if (response.data.length > 0) setSelectedProject(response.data[0].id)
     } catch (error) {
       console.error("Failed to fetch projects:", error)
     }
@@ -58,627 +160,327 @@ export default function FinancialDashboard() {
     }
   }
 
-  const selectedProjectData = projects.find(p => p.id === selectedProject)
-
-  const MetricCard = ({ title, value, subtitle, color = "blue", icon: Icon, trend }: any) => {
-    const colorClasses = {
-      blue: "bg-blue-50 text-blue-700 border-blue-200",
-      green: "bg-green-50 text-green-700 border-green-200",
-      red: "bg-red-50 text-red-700 border-red-200",
-      purple: "bg-purple-50 text-purple-700 border-purple-200",
-      orange: "bg-orange-50 text-orange-700 border-orange-200",
+  const selectedProjectData = projects.find((project) => project.id === selectedProject)
+  const health = financials ? healthInfo(financials) : null
+  const costShare = useMemo(() => {
+    if (!financials || financials.cost <= 0) return { timesheet: 0, expense: 0, vendor: 0 }
+    return {
+      timesheet: (financials.timesheetCost / financials.cost) * 100,
+      expense: (financials.expenseCost / financials.cost) * 100,
+      vendor: (financials.vendorBillCost / financials.cost) * 100,
     }
-
-    return (
-      <Card className={`p-6 border-2 ${colorClasses[color as keyof typeof colorClasses]} transition-all hover:shadow-lg`}>
-        <div className="flex items-start justify-between mb-3">
-          <div className="text-sm font-medium opacity-80">{title}</div>
-          {Icon && <Icon className="w-5 h-5 opacity-60" />}
-        </div>
-        <div className="text-3xl font-bold mb-1">
-          ${value.toLocaleString()}
-        </div>
-        {subtitle && (
-          <div className="text-xs opacity-70 flex items-center gap-1">
-            {trend && (trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />)}
-            {subtitle}
-          </div>
-        )}
-      </Card>
-    )
-  }
-
-  const StatCard = ({ label, value, icon: Icon }: any) => (
-    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border hover:shadow-md transition-all">
-      <div className="p-2 bg-blue-50 rounded-lg">
-        <Icon className="w-5 h-5 text-blue-600" />
-      </div>
-      <div>
-        <div className="text-2xl font-bold text-gray-900">{value}</div>
-        <div className="text-xs text-gray-500">{label}</div>
-      </div>
-    </div>
-  )
+  }, [financials])
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">Financial Dashboard</h2>
-          <p className="text-sm text-gray-500">Project financial analytics</p>
-        </div>
-
-        {/* Project Selection */}
-        <div className="p-6 border-b border-gray-200">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Select Project
-          </label>
-          <div className="space-y-2">
-            {projects.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => setSelectedProject(project.id)}
-                className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                  selectedProject === project.id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                }`}
-              >
-                <div className="font-semibold text-sm text-gray-900">{project.code}</div>
-                <div className="text-xs text-gray-600 mt-1">{project.name}</div>
-                {project.type && (
-                  <div className="text-xs text-gray-500 mt-1 capitalize">
-                    {project.type.toLowerCase().replace('_', ' ')}
-                  </div>
-                )}
-              </button>
-            ))}
+    <div className="min-h-screen bg-[#f0f4fa]">
+      <div className="w-full max-w-none space-y-5 px-4 py-4 pr-5 sm:px-5 lg:pl-0">
+        <section className="relative overflow-hidden rounded-xl border border-[#123463] bg-[#0f2a52] p-6 shadow-[0_8px_24px_rgba(15,42,82,0.14)]">
+          <div className="pointer-events-none absolute right-6 top-5 hidden h-32 w-64 opacity-35 md:block">
+            <svg viewBox="0 0 256 128" fill="none" className="h-full w-full">
+              <rect x="28" y="64" width="82" height="46" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.3)" />
+              <rect x="144" y="20" width="82" height="54" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.3)" />
+              <path d="M70 64C98 30 130 18 176 24" stroke="#bfdbfe" strokeWidth="1.5" strokeDasharray="6 7" strokeLinecap="round" />
+              <circle cx="70" cy="64" r="5" fill="#bfdbfe" />
+              <circle cx="176" cy="24" r="5" fill="#93c5fd" />
+              <path d="M48 88H90" stroke="rgba(255,255,255,0.58)" strokeWidth="6" strokeLinecap="round" />
+              <path d="M162 40H204" stroke="rgba(255,255,255,0.58)" strokeWidth="6" strokeLinecap="round" />
+              <path d="M162 54H192" stroke="rgba(255,255,255,0.28)" strokeWidth="6" strokeLinecap="round" />
+            </svg>
           </div>
-        </div>
 
-        {/* Quick Stats Sidebar */}
-        {financials && (
-          <div className="p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Overview</h3>
-            
-            <StatCard 
-              label="Invoices" 
-              value={financials.counts.invoices} 
-              icon={FileText}
-            />
-            <StatCard 
-              label="Timesheets" 
-              value={financials.counts.timesheets} 
-              icon={Clock}
-            />
-            <StatCard 
-              label="Expenses" 
-              value={financials.counts.expenses} 
-              icon={Receipt}
-            />
-            <StatCard 
-              label="Vendor Bills" 
-              value={financials.counts.vendorBills} 
-              icon={ShoppingCart}
-            />
-
-            {selectedProject && (
-              <Link 
-                to={`/projects/${selectedProject}`}
-                className="flex items-center justify-center gap-2 w-full mt-6 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-              >
-                View Project Details
-                <ArrowUpRight className="w-4 h-4" />
-              </Link>
-            )}
-          </div>
-        )}
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">{loading ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading financial data...</p>
-          </div>
-        </div>
-      ) : !financials ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Select a project to view financials</p>
-          </div>
-        </div>
-      ) : (
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <h1 className="text-3xl font-bold text-gray-900">
-                {selectedProjectData?.name || 'Financial Overview'}
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="inline-flex rounded bg-white/10 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.06em] text-white/70">
+                Financials
+              </div>
+              <h1 className="mt-3 text-[26px] font-semibold leading-[1.3] tracking-[-0.02em] text-white">
+                Financial dashboard
               </h1>
-              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg">
-                <span className="text-sm font-medium text-gray-600">Budget Health:</span>
-                {financials.budgetUsed > 90 ? (
-                  <span className="flex items-center gap-1 text-red-600 font-semibold">
-                    <AlertCircle className="w-4 h-4" />
-                    Critical
+              <p className="mt-2 max-w-2xl text-sm leading-[1.6] text-white/72">
+                Track revenue, project cost, budget health, milestones, invoices, and vendor activity.
+              </p>
+              {financials && health && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className={`rounded-full px-[10px] py-[3px] text-[11px] font-medium ${health.badge}`}>{health.label}</span>
+                  <span className="rounded-full bg-[#dbeafe] px-[10px] py-[3px] text-[11px] font-medium text-[#1d4ed8]">
+                    {selectedProjectData?.code || financials.projectCode}
                   </span>
-                ) : financials.budgetUsed > 75 ? (
-                  <span className="flex items-center gap-1 text-yellow-600 font-semibold">
-                    <AlertCircle className="w-4 h-4" />
-                    Warning
+                  <span className="rounded-full bg-white/10 px-[10px] py-[3px] text-[11px] font-medium text-white/80">
+                    {pct(financials.profitMargin)} margin
                   </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-green-600 font-semibold">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Healthy
-                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <select
+                value={selectedProject}
+                onChange={(event) => setSelectedProject(event.target.value)}
+                className="h-10 min-w-64 rounded-lg border border-white/20 bg-white px-3 text-sm text-[#0f172a] outline-none"
+              >
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.code} - {project.name}
+                  </option>
+                ))}
+              </select>
+              {selectedProject && (
+                <Link
+                  to={`/projects/${selectedProject}`}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-medium text-[#1a3c6e] transition hover:bg-[#f0f4fa]"
+                >
+                  View project
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {loading ? (
+          <div className="rounded-xl border border-[#d8e3f2] bg-white p-10 text-center text-sm text-[#64748b] shadow-[0_8px_24px_rgba(15,42,82,0.07)]">
+            Loading financial data...
+          </div>
+        ) : !financials ? (
+          <div className="rounded-xl border border-[#d8e3f2] bg-white p-10 text-center text-sm text-[#64748b] shadow-[0_8px_24px_rgba(15,42,82,0.07)]">
+            Select a project to view financials.
+          </div>
+        ) : (
+          <>
+            <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <KpiCard
+                label="Total revenue"
+                value={money(financials.revenue)}
+                note={`${financials.counts.invoices} invoices`}
+                icon={DollarSign}
+                tone={{ card: "bg-[#eff6ff]", icon: "bg-white text-[#1a3c6e]", value: "text-[#0f2a52]", strip: "bg-[#2563eb]" }}
+              />
+              <KpiCard
+                label="Total cost"
+                value={money(financials.cost)}
+                note="Timesheets, expenses, vendors"
+                icon={Receipt}
+                tone={{ card: "bg-[#fee2e2]", icon: "bg-white text-[#b91c1c]", value: "text-[#7f1d1d]", strip: "bg-[#dc2626]" }}
+              />
+              <KpiCard
+                label="Net profit"
+                value={money(financials.profit)}
+                note={`${pct(financials.profitMargin)} margin`}
+                icon={financials.profit >= 0 ? TrendingUp : TrendingDown}
+                tone={{
+                  card: financials.profit >= 0 ? "bg-[#f0fdf4]" : "bg-[#fee2e2]",
+                  icon: financials.profit >= 0 ? "bg-white text-[#15803d]" : "bg-white text-[#b91c1c]",
+                  value: financials.profit >= 0 ? "text-[#14532d]" : "text-[#7f1d1d]",
+                  strip: financials.profit >= 0 ? "bg-[#16a34a]" : "bg-[#dc2626]",
+                }}
+              />
+              <KpiCard
+                label="Budget remaining"
+                value={money(financials.budgetRemaining)}
+                note={`${pct(100 - financials.budgetUsed)} left`}
+                icon={Target}
+                tone={{ card: "bg-[#fdf4ff]", icon: "bg-white text-[#7e22ce]", value: "text-[#581c87]", strip: "bg-[#a855f7]" }}
+              />
+            </section>
+
+            <section className="overflow-hidden rounded-xl border border-[#d8e3f2] bg-white shadow-[0_8px_24px_rgba(15,42,82,0.07)]">
+              <div className="border-b border-[#d8e3f2] bg-[#f8fafc] px-6 py-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#1a3c6e]">Project finance</div>
+                    <h2 className="mt-1 text-xl font-semibold text-[#0f172a]">{selectedProjectData?.name || financials.projectName}</h2>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 rounded-lg bg-[#e2e8f0] p-1 sm:flex">
+                    {tabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`h-9 rounded-md px-4 text-sm font-medium transition ${
+                          activeTab === tab.key ? "bg-white text-[#1a3c6e] shadow-[0_1px_4px_rgba(0,0,0,0.06)]" : "text-[#64748b] hover:text-[#0f172a]"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5">
+                {activeTab === "overview" && (
+                  <div className="space-y-5">
+                    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                      <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-5">
+                        <h3 className="mb-5 text-base font-medium text-[#0f172a]">Revenue vs cost analysis</h3>
+                        <div className="space-y-5">
+                          <ProgressRow label="Revenue" amount={money(financials.revenue)} value={100} color="bg-[#2563eb]" />
+                          <ProgressRow
+                            label="Cost"
+                            amount={money(financials.cost)}
+                            value={financials.revenue > 0 ? (financials.cost / financials.revenue) * 100 : 0}
+                            color="bg-[#dc2626]"
+                          />
+                          <ProgressRow
+                            label="Profit"
+                            amount={money(financials.profit)}
+                            value={financials.revenue > 0 ? (financials.profit / financials.revenue) * 100 : 0}
+                            color={financials.profit >= 0 ? "bg-[#16a34a]" : "bg-[#64748b]"}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-[#e2e8f0] bg-white p-5">
+                        <h3 className="mb-4 text-base font-medium text-[#0f172a]">Budget health</h3>
+                        {health && (
+                          <div className="mb-4 inline-flex items-center gap-2 rounded-full px-[10px] py-[3px] text-[11px] font-medium">
+                            <health.icon className="h-4 w-4" />
+                            <span className={health.badge}>{health.note}</span>
+                          </div>
+                        )}
+                        <div className="mb-2 flex justify-between text-sm">
+                          <span className="text-[#64748b]">Used</span>
+                          <span className="font-medium text-[#0f172a]">{pct(financials.budgetUsed)}</span>
+                        </div>
+                        <div className="h-3 overflow-hidden rounded-full bg-[#e2e8f0]">
+                          <div className={`h-full rounded-full ${health?.bar || "bg-[#16a34a]"}`} style={{ width: `${Math.min(100, financials.budgetUsed)}%` }} />
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="rounded-lg bg-[#f8fafc] p-3">
+                            <div className="text-[11px] text-[#94a3b8]">Budget</div>
+                            <div className="text-sm font-medium text-[#0f172a]">{money(financials.budgetAmount)}</div>
+                          </div>
+                          <div className="rounded-lg bg-[#f8fafc] p-3">
+                            <div className="text-[11px] text-[#94a3b8]">Used</div>
+                            <div className="text-sm font-medium text-[#0f172a]">{money(financials.cost)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                      <CountCard label="Invoices" value={financials.counts.invoices} icon={FileText} />
+                      <CountCard label="Timesheets" value={financials.counts.timesheets} icon={Clock} />
+                      <CountCard label="Expenses" value={financials.counts.expenses} icon={Receipt} />
+                      <CountCard label="Vendor bills" value={financials.counts.vendorBills} icon={ShoppingCart} />
+                      <CountCard label="Sales orders" value={financials.counts.salesOrders} icon={Target} />
+                      <CountCard label="Purchase orders" value={financials.counts.purchaseOrders} icon={ShoppingCart} />
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "costs" && (
+                  <div className="space-y-5">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <KpiCard
+                        label="Timesheet cost"
+                        value={money(financials.timesheetCost)}
+                        note="Labor hours"
+                        icon={Clock}
+                        tone={{ card: "bg-[#eff6ff]", icon: "bg-white text-[#1a3c6e]", value: "text-[#0f2a52]", strip: "bg-[#2563eb]" }}
+                      />
+                      <KpiCard
+                        label="Expense cost"
+                        value={money(financials.expenseCost)}
+                        note="Team expenses"
+                        icon={Receipt}
+                        tone={{ card: "bg-[#fdf4ff]", icon: "bg-white text-[#7e22ce]", value: "text-[#581c87]", strip: "bg-[#a855f7]" }}
+                      />
+                      <KpiCard
+                        label="Vendor bills"
+                        value={money(financials.vendorBillCost)}
+                        note="External vendors"
+                        icon={ShoppingCart}
+                        tone={{ card: "bg-[#fff7ed]", icon: "bg-white text-[#c2410c]", value: "text-[#7c2d12]", strip: "bg-[#f59e0b]" }}
+                      />
+                    </div>
+                    <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-5">
+                      <h3 className="mb-5 text-base font-medium text-[#0f172a]">Cost distribution</h3>
+                      <div className="space-y-5">
+                        <ProgressRow label="Timesheet cost" amount={`${money(financials.timesheetCost)} (${pct(costShare.timesheet)})`} value={costShare.timesheet} color="bg-[#2563eb]" />
+                        <ProgressRow label="Expense cost" amount={`${money(financials.expenseCost)} (${pct(costShare.expense)})`} value={costShare.expense} color="bg-[#a855f7]" />
+                        <ProgressRow label="Vendor bills" amount={`${money(financials.vendorBillCost)} (${pct(costShare.vendor)})`} value={costShare.vendor} color="bg-[#f59e0b]" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "milestones" && (
+                  <div className="space-y-5">
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <KpiCard label="Total milestones" value={financials.milestones.total} note="All milestones" icon={Target} tone={{ card: "bg-[#eff6ff]", icon: "bg-white text-[#1a3c6e]", value: "text-[#0f2a52]", strip: "bg-[#2563eb]" }} />
+                      <KpiCard label="Completed" value={financials.milestones.done} note="Marked done" icon={CheckCircle2} tone={{ card: "bg-[#f0fdf4]", icon: "bg-white text-[#15803d]", value: "text-[#14532d]", strip: "bg-[#16a34a]" }} />
+                      <KpiCard label="Invoiced" value={financials.milestones.invoiced} note="Invoice created" icon={FileText} tone={{ card: "bg-[#fdf4ff]", icon: "bg-white text-[#7e22ce]", value: "text-[#581c87]", strip: "bg-[#a855f7]" }} />
+                      <KpiCard label="Pending" value={financials.milestones.total - financials.milestones.done} note="Not completed" icon={AlertCircle} tone={{ card: "bg-[#fff7ed]", icon: "bg-white text-[#c2410c]", value: "text-[#7c2d12]", strip: "bg-[#f59e0b]" }} />
+                    </div>
+                    <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-5">
+                      <h3 className="mb-5 text-base font-medium text-[#0f172a]">Milestone financial summary</h3>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Total value</div>
+                          <div className="mt-1 text-xl font-semibold text-[#0f172a]">{money(financials.milestones.totalAmount)}</div>
+                        </div>
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Invoiced amount</div>
+                          <div className="mt-1 text-xl font-semibold text-[#15803d]">{money(financials.milestones.invoicedAmount)}</div>
+                        </div>
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Remaining</div>
+                          <div className="mt-1 text-xl font-semibold text-[#1a3c6e]">
+                            {money(financials.milestones.totalAmount - financials.milestones.invoicedAmount)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-5">
+                        <ProgressRow
+                          label="Invoicing progress"
+                          amount={`${financials.milestones.invoiced} / ${financials.milestones.total}`}
+                          value={financials.milestones.totalAmount > 0 ? (financials.milestones.invoicedAmount / financials.milestones.totalAmount) * 100 : 0}
+                          color="bg-[#16a34a]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "budget" && (
+                  <div className="space-y-5">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <KpiCard label="Budget" value={money(financials.budgetAmount)} note="Total allocated" icon={Target} tone={{ card: "bg-[#eff6ff]", icon: "bg-white text-[#1a3c6e]", value: "text-[#0f2a52]", strip: "bg-[#2563eb]" }} />
+                      <KpiCard label="Used" value={money(financials.cost)} note={`${pct(financials.budgetUsed)} of budget`} icon={TrendingDown} tone={{ card: "bg-[#fee2e2]", icon: "bg-white text-[#b91c1c]", value: "text-[#7f1d1d]", strip: "bg-[#dc2626]" }} />
+                      <KpiCard label="Remaining" value={money(financials.budgetRemaining)} note={`${pct(100 - financials.budgetUsed)} left`} icon={DollarSign} tone={{ card: "bg-[#f0fdf4]", icon: "bg-white text-[#15803d]", value: "text-[#14532d]", strip: "bg-[#16a34a]" }} />
+                    </div>
+                    <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-5">
+                      <h3 className="mb-5 text-base font-medium text-[#0f172a]">Budget utilization</h3>
+                      <ProgressRow label="Budget used" amount={`${money(financials.cost)} / ${money(financials.budgetAmount)}`} value={financials.budgetUsed} color={health?.bar || "bg-[#16a34a]"} />
+                      <div className="mt-5 grid gap-3 md:grid-cols-4">
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Planned revenue</div>
+                          <div className="mt-1 text-lg font-semibold text-[#0f172a]">{money(financials.salesOrderTotal)}</div>
+                        </div>
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Actual revenue</div>
+                          <div className="mt-1 text-lg font-semibold text-[#0f172a]">{money(financials.revenue)}</div>
+                        </div>
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Total costs</div>
+                          <div className="mt-1 text-lg font-semibold text-[#0f172a]">{money(financials.cost)}</div>
+                        </div>
+                        <div className="rounded-lg bg-white p-4">
+                          <div className="text-xs text-[#64748b]">Expected profit</div>
+                          <div className={`mt-1 text-lg font-semibold ${financials.profit >= 0 ? "text-[#15803d]" : "text-[#b91c1c]"}`}>
+                            {money(financials.profit)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-            <p className="text-gray-500">{selectedProjectData?.code}</p>
-          </div>
-
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <MetricCard
-              title="Total Revenue"
-              value={financials.revenue}
-              subtitle={`From ${financials.counts.invoices} invoices`}
-              color="blue"
-              icon={DollarSign}
-            />
-            <MetricCard
-              title="Total Cost"
-              value={financials.cost}
-              subtitle="All expenses included"
-              color="red"
-              icon={Receipt}
-            />
-            <MetricCard
-              title="Net Profit"
-              value={financials.profit}
-              subtitle={`${financials.profitMargin.toFixed(1)}% margin`}
-              color="green"
-              icon={TrendingUp}
-              trend={financials.profit > 0 ? 1 : -1}
-            />
-            <MetricCard
-              title="Sales Orders"
-              value={financials.salesOrderTotal}
-              subtitle={`${financials.counts.salesOrders} orders`}
-              color="purple"
-              icon={Target}
-            />
-          </div>
-
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="bg-white border border-gray-200 p-1">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="costs" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                Cost Breakdown
-              </TabsTrigger>
-              <TabsTrigger value="milestones" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                Milestones
-              </TabsTrigger>
-              <TabsTrigger value="budget" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                Budget Analysis
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6">
-              {/* Revenue vs Cost Visualization */}
-              <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-blue-600" />
-                  Revenue vs Cost Analysis
-                </h3>
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Revenue</span>
-                      <span className="font-bold text-blue-700 text-lg">
-                        ${financials.revenue.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-6 shadow-inner">
-                      <div
-                        className="h-6 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md flex items-center justify-end pr-3"
-                        style={{ width: "100%" }}
-                      >
-                        <span className="text-white text-xs font-bold">100%</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Cost</span>
-                      <span className="font-bold text-red-700 text-lg">
-                        ${financials.cost.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-6 shadow-inner">
-                      <div
-                        className="h-6 rounded-full bg-gradient-to-r from-red-500 to-red-600 shadow-md flex items-center justify-end pr-3"
-                        style={{
-                          width: `${financials.revenue > 0 ? Math.min(100, (financials.cost / financials.revenue) * 100) : 0}%`,
-                        }}
-                      >
-                        <span className="text-white text-xs font-bold">
-                          {financials.revenue > 0 ? ((financials.cost / financials.revenue) * 100).toFixed(0) : 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Profit</span>
-                      <span className={`font-bold text-lg ${financials.profit > 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        ${financials.profit.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-6 shadow-inner">
-                      <div
-                        className={`h-6 rounded-full shadow-md flex items-center justify-end pr-3 ${
-                          financials.profit > 0 
-                            ? 'bg-gradient-to-r from-green-500 to-green-600' 
-                            : 'bg-gradient-to-r from-gray-400 to-gray-500'
-                        }`}
-                        style={{
-                          width: `${financials.revenue > 0 ? Math.max(5, (financials.profit / financials.revenue) * 100) : 5}%`,
-                        }}
-                      >
-                        <span className="text-white text-xs font-bold">
-                          {financials.profitMargin.toFixed(1)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <Card className="p-4 text-center hover:shadow-lg transition-all border-2 border-blue-100">
-                  <FileText className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                  <div className="text-sm text-gray-600 mb-1">Invoices</div>
-                  <div className="text-2xl font-bold text-gray-900">{financials.counts.invoices}</div>
-                </Card>
-                <Card className="p-4 text-center hover:shadow-lg transition-all border-2 border-green-100">
-                  <Clock className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                  <div className="text-sm text-gray-600 mb-1">Timesheets</div>
-                  <div className="text-2xl font-bold text-gray-900">{financials.counts.timesheets}</div>
-                </Card>
-                <Card className="p-4 text-center hover:shadow-lg transition-all border-2 border-purple-100">
-                  <Receipt className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                  <div className="text-sm text-gray-600 mb-1">Expenses</div>
-                  <div className="text-2xl font-bold text-gray-900">{financials.counts.expenses}</div>
-                </Card>
-                <Card className="p-4 text-center hover:shadow-lg transition-all border-2 border-orange-100">
-                  <ShoppingCart className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-                  <div className="text-sm text-gray-600 mb-1">Vendor Bills</div>
-                  <div className="text-2xl font-bold text-gray-900">{financials.counts.vendorBills}</div>
-                </Card>
-                <Card className="p-4 text-center hover:shadow-lg transition-all border-2 border-indigo-100">
-                  <Target className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
-                  <div className="text-sm text-gray-600 mb-1">Sales Orders</div>
-                  <div className="text-2xl font-bold text-gray-900">{financials.counts.salesOrders}</div>
-                </Card>
-                <Card className="p-4 text-center hover:shadow-lg transition-all border-2 border-pink-100">
-                  <ShoppingCart className="w-8 h-8 text-pink-600 mx-auto mb-2" />
-                  <div className="text-sm text-gray-600 mb-1">Purchase Orders</div>
-                  <div className="text-2xl font-bold text-gray-900">{financials.counts.purchaseOrders}</div>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="costs" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <MetricCard
-                  title="Timesheet Cost"
-                  value={financials.timesheetCost}
-                  subtitle="Labor hours"
-                  color="blue"
-                  icon={Clock}
-                />
-                <MetricCard
-                  title="Expense Cost"
-                  value={financials.expenseCost}
-                  subtitle="Team expenses"
-                  color="purple"
-                  icon={Receipt}
-                />
-                <MetricCard
-                  title="Vendor Bills"
-                  value={financials.vendorBillCost}
-                  subtitle="External vendors"
-                  color="orange"
-                  icon={ShoppingCart}
-                />
-              </div>
-
-              <Card className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 border-2 border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Receipt className="w-6 h-6 text-purple-600" />
-                  Cost Distribution
-                </h3>
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Timesheet Cost</span>
-                      <span className="font-bold text-blue-700">
-                        ${financials.timesheetCost.toLocaleString()} (
-                        {financials.cost > 0
-                          ? ((financials.timesheetCost / financials.cost) * 100).toFixed(1)
-                          : 0}
-                        %)
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-5 shadow-inner">
-                      <div
-                        className="h-5 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 shadow-md"
-                        style={{
-                          width: `${financials.cost > 0 ? (financials.timesheetCost / financials.cost) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Expense Cost</span>
-                      <span className="font-bold text-purple-700">
-                        ${financials.expenseCost.toLocaleString()} (
-                        {financials.cost > 0
-                          ? ((financials.expenseCost / financials.cost) * 100).toFixed(1)
-                          : 0}
-                        %)
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-5 shadow-inner">
-                      <div
-                        className="h-5 rounded-full bg-gradient-to-r from-purple-400 to-purple-600 shadow-md"
-                        style={{
-                          width: `${financials.cost > 0 ? (financials.expenseCost / financials.cost) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Vendor Bills</span>
-                      <span className="font-bold text-orange-700">
-                        ${financials.vendorBillCost.toLocaleString()} (
-                        {financials.cost > 0
-                          ? ((financials.vendorBillCost / financials.cost) * 100).toFixed(1)
-                          : 0}
-                        %)
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-5 shadow-inner">
-                      <div
-                        className="h-5 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 shadow-md"
-                        style={{
-                          width: `${financials.cost > 0 ? (financials.vendorBillCost / financials.cost) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="milestones" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-                  <div className="text-sm font-medium text-blue-700 mb-2">Total Milestones</div>
-                  <div className="text-4xl font-bold text-blue-900">{financials.milestones.total}</div>
-                </Card>
-                <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-                  <div className="flex items-center gap-2 text-sm font-medium text-green-700 mb-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Completed
-                  </div>
-                  <div className="text-4xl font-bold text-green-900">{financials.milestones.done}</div>
-                </Card>
-                <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200">
-                  <div className="flex items-center gap-2 text-sm font-medium text-purple-700 mb-2">
-                    <FileText className="w-4 h-4" />
-                    Invoiced
-                  </div>
-                  <div className="text-4xl font-bold text-purple-900">{financials.milestones.invoiced}</div>
-                </Card>
-                <Card className="p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-200">
-                  <div className="flex items-center gap-2 text-sm font-medium text-yellow-700 mb-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Pending
-                  </div>
-                  <div className="text-4xl font-bold text-yellow-900">
-                    {financials.milestones.total - financials.milestones.done}
-                  </div>
-                </Card>
-              </div>
-
-              <Card className="p-8 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Target className="w-6 h-6 text-indigo-600" />
-                  Milestone Financial Summary
-                </h3>
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center p-4 bg-white rounded-lg shadow-sm">
-                    <span className="font-semibold text-gray-700">Total Milestone Value</span>
-                    <span className="font-bold text-2xl text-gray-900">
-                      ${financials.milestones.totalAmount.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg shadow-sm border-2 border-green-200">
-                    <span className="font-semibold text-green-700">Invoiced Amount</span>
-                    <span className="font-bold text-2xl text-green-700">
-                      ${financials.milestones.invoicedAmount.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg shadow-sm border-2 border-blue-200">
-                    <span className="font-semibold text-blue-700">Remaining to Invoice</span>
-                    <span className="font-bold text-2xl text-blue-700">
-                      $
-                      {(
-                        financials.milestones.totalAmount - financials.milestones.invoicedAmount
-                      ).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="pt-6 border-t-2 border-gray-200">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-semibold text-gray-700">Invoicing Progress</span>
-                      <span className="font-bold text-lg text-gray-900">
-                        {financials.milestones.totalAmount > 0
-                          ? (
-                              (financials.milestones.invoicedAmount / financials.milestones.totalAmount) *
-                              100
-                            ).toFixed(1)
-                          : 0}
-                        %
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-6 shadow-inner">
-                      <div
-                        className="h-6 rounded-full bg-gradient-to-r from-green-500 to-green-600 shadow-md flex items-center justify-center"
-                        style={{
-                          width: `${financials.milestones.totalAmount > 0 ? (financials.milestones.invoicedAmount / financials.milestones.totalAmount) * 100 : 0}%`,
-                        }}
-                      >
-                        <span className="text-white text-xs font-bold">
-                          {financials.milestones.invoiced} / {financials.milestones.total}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="budget" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <MetricCard
-                  title="Budget"
-                  value={financials.budgetAmount}
-                  subtitle="Total allocated"
-                  color="blue"
-                  icon={Target}
-                />
-                <MetricCard
-                  title="Used"
-                  value={financials.cost}
-                  subtitle={`${financials.budgetUsed.toFixed(1)}% of budget`}
-                  color="red"
-                  icon={TrendingDown}
-                />
-                <MetricCard
-                  title="Remaining"
-                  value={financials.budgetRemaining}
-                  subtitle={`${(100 - financials.budgetUsed).toFixed(1)}% left`}
-                  color="green"
-                  icon={DollarSign}
-                />
-              </div>
-
-              <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <Target className="w-6 h-6 text-blue-600" />
-                  Budget Utilization
-                </h3>
-                <div className="space-y-8">
-                  <div>
-                    <div className="flex justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Budget Used</span>
-                      <span className="font-bold text-lg text-gray-900">
-                        ${financials.cost.toLocaleString()} / $
-                        {financials.budgetAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="w-full bg-white rounded-full h-8 shadow-inner">
-                      <div
-                        className={`h-8 rounded-full shadow-lg flex items-center justify-center font-bold text-white text-sm ${
-                          financials.budgetUsed > 90
-                            ? "bg-gradient-to-r from-red-500 to-red-600"
-                            : financials.budgetUsed > 75
-                              ? "bg-gradient-to-r from-yellow-500 to-yellow-600"
-                              : "bg-gradient-to-r from-green-500 to-green-600"
-                        }`}
-                        style={{ width: `${Math.min(100, financials.budgetUsed)}%` }}
-                      >
-                        {financials.budgetUsed.toFixed(1)}%
-                      </div>
-                    </div>
-                    <div className="mt-3 text-center">
-                      {financials.budgetUsed > 90 && (
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 border-2 border-red-300 rounded-lg">
-                          <AlertCircle className="w-5 h-5 text-red-700" />
-                          <span className="text-red-700 font-semibold">Budget almost exhausted</span>
-                        </div>
-                      )}
-                      {financials.budgetUsed > 75 && financials.budgetUsed <= 90 && (
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 border-2 border-yellow-300 rounded-lg">
-                          <AlertCircle className="w-5 h-5 text-yellow-700" />
-                          <span className="text-yellow-700 font-semibold">Approaching budget limit</span>
-                        </div>
-                      )}
-                      {financials.budgetUsed <= 75 && (
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 border-2 border-green-300 rounded-lg">
-                          <CheckCircle2 className="w-5 h-5 text-green-700" />
-                          <span className="text-green-700 font-semibold">Within budget</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t-2 border-gray-200">
-                    <h4 className="font-bold text-lg mb-4 text-gray-900">Budget Health Analysis</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-white rounded-lg shadow-sm border-2 border-gray-200">
-                        <div className="text-sm text-gray-600 mb-1">Planned Revenue</div>
-                        <div className="text-xl font-bold text-gray-900">
-                          ${financials.salesOrderTotal.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-white rounded-lg shadow-sm border-2 border-gray-200">
-                        <div className="text-sm text-gray-600 mb-1">Actual Revenue</div>
-                        <div className="text-xl font-bold text-gray-900">
-                          ${financials.revenue.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-white rounded-lg shadow-sm border-2 border-gray-200">
-                        <div className="text-sm text-gray-600 mb-1">Total Costs</div>
-                        <div className="text-xl font-bold text-gray-900">
-                          ${financials.cost.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className={`p-4 rounded-lg shadow-sm border-2 ${
-                        financials.profit > 0 
-                          ? 'bg-green-50 border-green-300' 
-                          : 'bg-red-50 border-red-300'
-                      }`}>
-                        <div className="text-sm text-gray-600 mb-1">Expected Profit</div>
-                        <div className={`text-xl font-bold ${
-                          financials.profit > 0 ? 'text-green-700' : 'text-red-700'
-                        }`}>
-                          ${financials.profit.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      )}
-      </main>
+            </section>
+          </>
+        )}
+      </div>
     </div>
   )
 }

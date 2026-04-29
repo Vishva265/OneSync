@@ -1,53 +1,91 @@
 import { useMemo, useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { projectsApi } from "../api/projects"
-import { timesheetsApi } from "../api/timesheets"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { expensesApi } from "../api/expenses"
+import { projectsApi } from "../api/projects"
 import { tasksApi } from "../api/tasks"
+import { timesheetsApi } from "../api/timesheets"
 import { useAuthStore } from "../store/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import { Button } from "../components/ui/button"
-import { ListChecks, Clock as ClockIcon, DollarSign, Receipt } from "lucide-react"
+import { Clock as ClockIcon, DollarSign, ListChecks, Receipt } from "lucide-react"
 
 type TaskState = "NEW" | "IN_PROGRESS" | "BLOCKED" | "DONE"
 
-export function DashboardTeamPage() {
-  const POLL_MS = 15_000
-  const queryClient = useQueryClient()
-  const user = useAuthStore((s: any) => s.user)
+const columns: TaskState[] = ["NEW", "IN_PROGRESS", "BLOCKED", "DONE"]
 
-  // --- Projects (used to attach project code/name on tasks)
+const columnLabels: Record<TaskState, string> = {
+  NEW: "New",
+  IN_PROGRESS: "In progress",
+  BLOCKED: "Blocked",
+  DONE: "Done",
+}
+
+function KpiCard({
+  label,
+  value,
+  note,
+  icon: Icon,
+}: {
+  label: string
+  value: string | number
+  note?: string
+  icon: typeof ListChecks
+}) {
+  return (
+    <article className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-[18px] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+      <div className="mb-[6px] flex items-center justify-between gap-3">
+        <span className="text-xs text-[#64748b]">{label}</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff] text-[#1a3c6e]">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className="text-[26px] font-semibold leading-[1.3] text-[#0f172a]">{value}</div>
+      {note && <div className="mt-1 text-[11px] text-[#64748b]">{note}</div>}
+    </article>
+  )
+}
+
+function PriorityBadge({ priority }: { priority: string }) {
+  const classes =
+    priority === "CRITICAL"
+      ? "bg-[#fee2e2] text-[#b91c1c]"
+      : priority === "HIGH"
+        ? "bg-[#fff7ed] text-[#c2410c]"
+        : priority === "MEDIUM"
+          ? "bg-[#dbeafe] text-[#1d4ed8]"
+          : "bg-[#f3f4f6] text-[#374151]"
+
+  return <span className={`rounded-full px-[10px] py-[3px] text-[11px] font-medium ${classes}`}>{priority || "LOW"}</span>
+}
+
+export function DashboardTeamPage() {
+  const pollMs = 15_000
+  const queryClient = useQueryClient()
+  const user = useAuthStore((state: any) => state.user)
+
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => (await projectsApi.getAll()).data,
-    refetchInterval: POLL_MS,
+    refetchInterval: pollMs,
     refetchOnWindowFocus: true,
   })
 
-  const allProjectIds: string[] = useMemo(
-    () => (projects as any[]).map((p) => String(p.id)),
-    [projects]
-  )
+  const allProjectIds: string[] = useMemo(() => (projects as any[]).map((project) => String(project.id)), [projects])
 
-  // --- My timesheets (for KPI)
   const { data: timesheets = [] } = useQuery({
     queryKey: ["timesheets", user?.id],
-    queryFn: async () => (await timesheetsApi.getAll({ user: user?.id || "" })).data,
+    queryFn: async () => (await timesheetsApi.getAll({ user: user?.id || "" } as any)).data,
     enabled: !!user?.id,
-    refetchInterval: POLL_MS,
+    refetchInterval: pollMs,
     refetchOnWindowFocus: true,
   })
 
-  // --- My expenses (for KPI)
   const { data: expenses = [] } = useQuery({
     queryKey: ["expenses", user?.id],
-    queryFn: async () => (await expensesApi.getAll({ user: (user?.id || "") as any })).data,
+    queryFn: async () => (await expensesApi.getAll({ user: user?.id || "" } as any)).data,
     enabled: !!user?.id,
-    refetchInterval: POLL_MS,
+    refetchInterval: pollMs,
     refetchOnWindowFocus: true,
   })
 
-  // --- All tasks assigned to me (robust)
   const { data: myTasks = [], isFetching: isFetchingTasks } = useQuery({
     queryKey: ["team-myTasks-allProjects", user?.id, allProjectIds],
     queryFn: async () => {
@@ -59,72 +97,61 @@ export function DashboardTeamPage() {
         return []
       }
 
-      // 1) Try per-project fetch (preferred for cache locality)
       let fromProjects: any[] = []
       if (allProjectIds.length > 0) {
         const perProject = await Promise.all(
-          allProjectIds.map(async (pid) => {
-            const res = await tasksApi.getByProject(pid)
-            return normalizeList(res.data)
-          })
+          allProjectIds.map(async (projectId) => {
+            const response = await tasksApi.getByProject(projectId)
+            return normalizeList(response.data)
+          }),
         )
         fromProjects = perProject.flat()
       }
 
-      // 2) Global fallback (if available)
       let fromAll: any[] = []
       if ((!fromProjects || fromProjects.length === 0) && (tasksApi as any).getAll) {
         try {
-          const resAll = await (tasksApi as any).getAll({ assigneeId: user.id })
-          fromAll = normalizeList(resAll.data)
+          const responseAll = await (tasksApi as any).getAll({ assigneeId: user.id })
+          fromAll = normalizeList(responseAll.data)
         } catch {
-          // ignore
+          // Global task endpoint is optional in this app.
         }
       }
 
       const combined = (fromProjects.length ? fromProjects : fromAll) || []
-
-      // Normalize IDs & filter to me
-      const mine = combined.filter((t: any) => {
-        const aid = String(t.assigneeId || t.assignee?.id || "")
-        return aid && aid === String(user.id)
+      const mine = combined.filter((task: any) => {
+        const assigneeId = String(task.assigneeId || task.assignee?.id || "")
+        return assigneeId && assigneeId === String(user.id)
       })
 
-      // Attach project code/name + normalize estimate hours
-      const byId = new Map((projects as any[]).map((p) => [String(p.id), p]))
-      return mine.map((t: any) => {
-        const p = byId.get(String(t.projectId)) || {}
+      const byId = new Map((projects as any[]).map((project) => [String(project.id), project]))
+      return mine.map((task: any) => {
+        const project = byId.get(String(task.projectId)) || {}
         return {
-          ...t,
-          _projectCode: p.code || "",
-          _projectName: p.name || "",
-          _estimateHours: Number(t.estimateHours ?? 0),
+          ...task,
+          _projectCode: project.code || "",
+          _projectName: project.name || "",
+          _estimateHours: Number(task.estimateHours ?? 0),
         }
       })
     },
     enabled: !!user?.id,
-    refetchInterval: POLL_MS,
+    refetchInterval: pollMs,
     refetchOnWindowFocus: true,
   })
 
-  // --- KPIs
   const todayHours = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
     return (timesheets as any[])
-      .filter((t) => (t.workDate || "").startsWith(today))
-      .reduce((s, t) => s + (Number(t.durationHours) || 0), 0)
+      .filter((timesheet) => (timesheet.workDate || "").startsWith(today))
+      .reduce((sum, timesheet) => sum + (Number(timesheet.durationHours) || 0), 0)
   }, [timesheets])
-
-  const myTasksCount = (myTasks as any[]).length
-
-  // --- Kanban (move only)
-  const columns: TaskState[] = ["NEW", "IN_PROGRESS", "BLOCKED", "DONE"]
 
   const grouped = useMemo(() => {
     const map: Record<TaskState, any[]> = { NEW: [], IN_PROGRESS: [], BLOCKED: [], DONE: [] }
-    ;(myTasks as any[]).forEach((t) => {
-      const s = ((t.state as TaskState) || "NEW") as TaskState
-      ;(map[s] ?? map.NEW).push(t)
+    ;(myTasks as any[]).forEach((task) => {
+      const state = ((task.state as TaskState) || "NEW") as TaskState
+      ;(map[state] ?? map.NEW).push(task)
     })
     return map
   }, [myTasks])
@@ -135,27 +162,28 @@ export function DashboardTeamPage() {
   const moveMutation = useMutation({
     mutationFn: ({ id, state }: { id: string; state: TaskState }) => tasksApi.move(id, state),
     onMutate: async ({ id, state }) => {
-      const qk = ["team-myTasks-allProjects", user?.id, allProjectIds] as const
-      await queryClient.cancelQueries({ queryKey: qk })
-      const prev = queryClient.getQueryData<any[]>(qk) || []
-      queryClient.setQueryData<any[]>(qk, (old = []) => old.map((t) => (t.id === id ? { ...t, state } : t)))
-      return { prev, qk }
+      const queryKey = ["team-myTasks-allProjects", user?.id, allProjectIds] as const
+      await queryClient.cancelQueries({ queryKey })
+      const prev = queryClient.getQueryData<any[]>(queryKey) || []
+      queryClient.setQueryData<any[]>(queryKey, (old = []) => old.map((task) => (task.id === id ? { ...task, state } : task)))
+      return { prev, queryKey }
     },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev && ctx?.qk) queryClient.setQueryData(ctx.qk, ctx.prev)
+    onError: (_error, _variables, context) => {
+      if (context?.prev && context?.queryKey) queryClient.setQueryData(context.queryKey, context.prev)
     },
     onSettled: () => {
-      const qk = ["team-myTasks-allProjects", user?.id, allProjectIds] as const
-      queryClient.invalidateQueries({ queryKey: qk })
-      allProjectIds.forEach((pid) => queryClient.invalidateQueries({ queryKey: ["tasks", pid] }))
+      const queryKey = ["team-myTasks-allProjects", user?.id, allProjectIds] as const
+      queryClient.invalidateQueries({ queryKey })
+      allProjectIds.forEach((projectId) => queryClient.invalidateQueries({ queryKey: ["tasks", projectId] }))
     },
   })
 
-  function onDragStart(e: React.DragEvent, taskId: string) {
+  function onDragStart(event: React.DragEvent, taskId: string) {
     setDragTaskId(taskId)
-    e.dataTransfer.setData("text/plain", taskId)
+    event.dataTransfer.setData("text/plain", taskId)
   }
-  function onDrop(_e: React.DragEvent, targetState: TaskState) {
+
+  function onDrop(_event: React.DragEvent, targetState: TaskState) {
     const id = dragTaskId
     setDragTaskId(null)
     setDragOverCol(null)
@@ -164,151 +192,84 @@ export function DashboardTeamPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">My Work</h1>
-          <p className="text-gray-600">Welcome back{user?.fullName ? `, ${user.fullName}` : ""}</p>
-        </div>
+    <div className="min-h-screen bg-[#f0f4fa]">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <section className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">Team dashboard</div>
+              <h1 className="mt-2 text-[26px] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0f172a]">My work</h1>
+              <p className="mt-2 text-sm leading-[1.6] text-[#64748b]">
+                Welcome back{user?.fullName ? `, ${user.fullName}` : ""}. Track assigned work and move tasks through delivery.
+              </p>
+            </div>
+            {isFetchingTasks && <span className="text-xs text-[#64748b]">Refreshing tasks...</span>}
+          </div>
+        </section>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="rounded-xl shadow-sm border border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg bg-blue-100">
-                  <ListChecks className="w-4 h-4 text-blue-700" />
-                </span>
-                My Tasks
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-gray-900">{myTasksCount}</p>
-            </CardContent>
-          </Card>
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="My tasks" value={(myTasks as any[]).length} note="Across active projects" icon={ListChecks} />
+          <KpiCard label="Hours logged today" value={todayHours} note="Submitted timesheets" icon={ClockIcon} />
+          <KpiCard label="Billable hours" value="--" note="Pending calculation" icon={DollarSign} />
+          <KpiCard label="Expenses submitted" value={(expenses as any[]).length} note="Current expense records" icon={Receipt} />
+        </section>
 
-          <Card className="rounded-xl shadow-sm border border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg bg-blue-100">
-                  <ClockIcon className="w-4 h-4 text-blue-700" />
-                </span>
-                Hours Logged Today
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-gray-900">{todayHours}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl shadow-sm border border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg bg-blue-100">
-                  <DollarSign className="w-4 h-4 text-blue-700" />
-                </span>
-                Billable Hours
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-gray-900">--</p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl shadow-sm border border-gray-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg bg-blue-100">
-                  <Receipt className="w-4 h-4 text-blue-700" />
-                </span>
-                Expenses Submitted
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-gray-900">{(expenses as any[]).length}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* My Tasks Kanban */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">My Tasks (across projects)</h2>
-            {isFetchingTasks && <p className="text-xs text-gray-400">Refreshing tasks...</p>}
+        <section className="rounded-xl border border-[#e2e8f0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="border-b border-[#e2e8f0] px-6 py-5">
+            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">Kanban</div>
+            <h2 className="mt-1 text-xl font-semibold text-[#0f172a]">My tasks across projects</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
             {columns.map((column) => (
               <div
                 key={column}
-                className={`rounded-xl p-4 min-h-[320px] bg-white border
-                  ${dragOverCol === column ? "border-blue-500 ring-2 ring-blue-200" : "border-gray-200"}
-                `}
-                onDragOver={(e) => e.preventDefault()}
+                className={`min-h-[320px] rounded-xl border bg-[#f8fafc] p-4 transition ${
+                  dragOverCol === column ? "border-[#1a3c6e] shadow-[0_0_0_3px_rgba(26,60,110,0.12)]" : "border-[#e2e8f0]"
+                }`}
+                onDragOver={(event) => event.preventDefault()}
                 onDragEnter={() => setDragOverCol(column)}
-                onDragLeave={() => setDragOverCol((c) => (c === column ? null : c))}
-                onDrop={(e) => onDrop(e, column)}
+                onDragLeave={() => setDragOverCol((current) => (current === column ? null : current))}
+                onDrop={(event) => onDrop(event, column)}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-sm text-gray-700 tracking-wide">
-                    {column.replace("_", " ")}
-                  </h3>
-                  <span className="text-xs text-gray-400">{grouped[column].length}</span>
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">{columnLabels[column]}</h3>
+                  <span className="rounded-full bg-white px-[10px] py-[3px] text-[11px] font-medium text-[#64748b]">
+                    {grouped[column].length}
+                  </span>
                 </div>
 
                 <div className="space-y-3">
                   {grouped[column].map((task: any) => (
-                    <Card
+                    <article
                       key={task.id}
-                      className="hover:shadow-md cursor-move rounded-lg border border-gray-200 transition-shadow"
+                      className="cursor-move rounded-lg border border-[#e2e8f0] bg-white p-3 shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:border-[#bfdbfe]"
                       draggable
-                      onDragStart={(e) => onDragStart(e, task.id)}
+                      onDragStart={(event) => onDragStart(event, task.id)}
                     >
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-medium text-sm text-gray-900 truncate">{task.title}</p>
-                          <span className="text-[10px] text-gray-500 flex-shrink-0">
-                            {task._projectCode || task._projectName || ""}
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-medium text-[#0f172a]">{task.title}</p>
+                        <span className="shrink-0 text-[10px] text-[#64748b]">{task._projectCode || task._projectName || ""}</span>
+                      </div>
+
+                      {task.description && <p className="line-clamp-2 text-xs leading-[1.6] text-[#64748b]">{task.description}</p>}
+
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <PriorityBadge priority={task.priority} />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-[#64748b]">
+                            {Number(task._estimateHours) ? `${Number(task._estimateHours)}h` : "-"}
+                          </span>
+                          <span className="rounded-full bg-[#dcfce7] px-[10px] py-[3px] text-[11px] font-medium text-[#15803d]">
+                            Mine
                           </span>
                         </div>
-
-                        {task.description && (
-                          <p className="text-xs text-gray-600 line-clamp-2">{task.description}</p>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={`text-xs px-2 py-1 rounded-lg font-medium
-                              ${
-                                task.priority === "CRITICAL"
-                                  ? "bg-red-100 text-red-800"
-                                  : task.priority === "HIGH"
-                                  ? "bg-orange-100 text-orange-800"
-                                  : task.priority === "MEDIUM"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }
-                            `}
-                          >
-                            {task.priority}
-                          </span>
-
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-gray-600">
-                              {Number(task._estimateHours) ? `${Number(task._estimateHours)}h` : "—"}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-lg bg-green-100 text-green-700">
-                              Assigned to me
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </article>
                   ))}
 
                   {grouped[column].length === 0 && (
-                    <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs text-gray-400">
+                    <div className="rounded-lg border border-dashed border-[#d1d5db] bg-white p-4 text-center text-xs text-[#94a3b8]">
                       No tasks
                     </div>
                   )}
@@ -316,12 +277,7 @@ export function DashboardTeamPage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Quick actions (optional, purely presentational) */}
-        <div className="hidden">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Create Task</Button>
-        </div>
+        </section>
       </div>
     </div>
   )

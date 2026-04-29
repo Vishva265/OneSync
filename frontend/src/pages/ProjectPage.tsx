@@ -115,7 +115,7 @@ export function ProjectPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
+        <Link to="/projects" className="text-gray-600 hover:text-gray-900">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>

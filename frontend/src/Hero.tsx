@@ -1,485 +1,710 @@
-import { useNavigate } from 'react-router-dom';
-import { FileText, Zap, DollarSign, Mail, Twitter, Linkedin, Github, ArrowRight, Check, Users, Calendar, TrendingUp, Shield, Clock, BarChart3, MessageSquare, Star } from 'lucide-react';
+import { useNavigate } from "react-router-dom"
+import {
+  ArrowRight,
+  BarChart3,
+  Bell,
+  BriefcaseBusiness,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardList,
+  Clock3,
+  FileText,
+  FolderKanban,
+  LayoutDashboard,
+  Menu,
+  ReceiptText,
+  Search,
+  ShieldCheck,
+  Users,
+} from "lucide-react"
+
+const styles = `
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+
+  .os-home {
+    --navy: #0f2a52;
+    --primary: #1a3c6e;
+    --accent: #2563eb;
+    --page: #f0f4fa;
+    --surface: #ffffff;
+    --muted-surface: #f8fafc;
+    --border: #e2e8f0;
+    --border-strong: #d1d5db;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --text-tertiary: #94a3b8;
+    --success: #16a34a;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+    min-height: 100vh;
+    background: var(--page);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-x: hidden;
+  }
+
+  .os-home *,
+  .os-home *::before,
+  .os-home *::after {
+    box-sizing: border-box;
+  }
+
+  .os-fade-in {
+    animation: osFadeIn 420ms ease-out both;
+  }
+
+  .os-slide-in {
+    animation: osSlideIn 520ms ease-out both;
+  }
+
+  .os-delay-1 { animation-delay: 80ms; }
+  .os-delay-2 { animation-delay: 150ms; }
+  .os-delay-3 { animation-delay: 220ms; }
+
+  .os-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .os-btn-primary,
+  .os-btn-secondary,
+  .os-btn-ghost {
+    height: 40px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+  }
+
+  .os-btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .os-btn-primary:hover {
+    background: #15325d;
+    transform: translateY(-1px);
+  }
+
+  .os-btn-secondary {
+    border: 1.5px solid var(--primary);
+    color: var(--primary);
+    background: transparent;
+  }
+
+  .os-btn-secondary:hover {
+    background: rgba(26,60,110,0.08);
+  }
+
+  .os-btn-ghost {
+    border: 0.5px solid var(--border);
+    color: var(--text-secondary);
+    background: transparent;
+  }
+
+  .os-btn-ghost:hover {
+    background: #f8fafc;
+    color: var(--text);
+  }
+
+  .os-input {
+    height: 40px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    outline: none;
+  }
+
+  .os-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26,60,110,0.12);
+  }
+
+  .os-nav-link {
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 150ms ease;
+  }
+
+  .os-nav-link:hover,
+  .os-nav-link-active {
+    color: #fff;
+  }
+
+  .os-sidebar-item {
+    height: 40px;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .os-sidebar-item-active {
+    background: rgba(26,60,110,0.10);
+    color: var(--primary);
+    font-weight: 500;
+  }
+
+  .os-table-header {
+    background: #f8fafc;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .os-table-row {
+    min-height: 48px;
+    border-bottom: 0.5px solid #f1f5f9;
+    transition: background-color 150ms ease;
+  }
+
+  .os-table-row:hover {
+    background: #f8fafc;
+  }
+
+  .os-preview-grid,
+  .os-preview-main,
+  .os-preview-panel,
+  .os-table-scroll {
+    min-width: 0;
+  }
+
+  .os-table-scroll {
+    overflow-x: auto;
+  }
+
+  .os-table-grid {
+    min-width: 620px;
+  }
+
+  .os-hero-preview {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .os-preview-toolbar {
+    min-width: 0;
+  }
+
+  .os-preview-search {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .os-doodle {
+    position: relative;
+    min-height: 360px;
+  }
+
+  .os-doodle-card {
+    position: absolute;
+    background: #fff;
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .os-doodle-card-main {
+    inset: 24px 0 auto auto;
+    width: min(420px, 100%);
+    padding: 24px;
+  }
+
+  .os-doodle-card-small {
+    left: 8px;
+    top: 210px;
+    width: 190px;
+    padding: 16px;
+  }
+
+  .os-doodle-card-tiny {
+    right: 28px;
+    top: 276px;
+    width: 166px;
+    padding: 14px;
+  }
+
+  .os-doodle-line {
+    position: absolute;
+    border: 1px dashed rgba(26,60,110,0.25);
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .os-doodle-line-a {
+    right: 150px;
+    top: 162px;
+    width: 148px;
+    height: 76px;
+    border-left-color: transparent;
+    border-bottom-color: transparent;
+    transform: rotate(8deg);
+  }
+
+  .os-doodle-line-b {
+    right: 78px;
+    top: 224px;
+    width: 96px;
+    height: 64px;
+    border-right-color: transparent;
+    border-top-color: transparent;
+    transform: rotate(-10deg);
+  }
+
+  .os-doodle-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+
+  @media (max-width: 1023px) {
+    .os-doodle {
+      min-height: 280px;
+    }
+
+    .os-doodle-card-main {
+      position: relative;
+      inset: auto;
+      width: 100%;
+    }
+
+    .os-doodle-card-small,
+    .os-doodle-card-tiny,
+    .os-doodle-line,
+    .os-doodle-dot {
+      display: none;
+    }
+  }
+
+  @keyframes osFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes osSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .os-fade-in,
+    .os-slide-in {
+      animation: none;
+    }
+
+    .os-btn-primary:hover {
+      transform: none;
+    }
+  }
+`
+
+const navItems = ["Dashboard", "Projects", "Finance", "Reports"]
+
+const stats = [
+  { label: "Active projects", value: "24", trend: "+3 this month", tone: "text-[#16a34a]" },
+  { label: "Hours pending", value: "186", trend: "12 approvals", tone: "text-[#f59e0b]" },
+  { label: "Open expenses", value: "$8.4k", trend: "5 need review", tone: "text-[#dc2626]" },
+  { label: "Ready to invoice", value: "$42k", trend: "On track", tone: "text-[#16a34a]" },
+]
+
+const sidebarItems = [
+  { label: "Dashboard", icon: LayoutDashboard, active: true },
+  { label: "Projects", icon: FolderKanban },
+  { label: "Timesheets", icon: Clock3 },
+  { label: "Expenses", icon: ReceiptText },
+  { label: "Financials", icon: BarChart3 },
+]
+
+const tableRows = [
+  { project: "Website redesign", owner: "Aarav Mehta", status: "Active", budget: "$18,200", due: "May 12" },
+  { project: "Mobile sprint", owner: "Priya Shah", status: "Review", budget: "$11,760", due: "May 18" },
+  { project: "Vendor onboarding", owner: "Neha Rao", status: "Blocked", budget: "$6,420", due: "May 24" },
+]
+
+const modules = [
+  {
+    icon: FolderKanban,
+    title: "Project workspace",
+    copy: "Track milestones, tasks, owners, and delivery status from a clean manager view.",
+  },
+  {
+    icon: Clock3,
+    title: "Timesheet control",
+    copy: "Review billable hours, approval status, and weekly activity without spreadsheet cleanup.",
+  },
+  {
+    icon: ReceiptText,
+    title: "Expense approvals",
+    copy: "Keep submitted expenses, review notes, and finance handoffs visible in one queue.",
+  },
+  {
+    icon: FileText,
+    title: "Invoice readiness",
+    copy: "Move approved work and project costs into invoice-ready summaries with less backtracking.",
+  },
+]
+
+const processSteps = [
+  "Create the project workspace",
+  "Assign team activity and budgets",
+  "Approve timesheets and expenses",
+  "Review finance-ready reports",
+]
+
+function StatusBadge({ status }: { status: string }) {
+  const classes =
+    status === "Active"
+      ? "bg-[#dcfce7] text-[#15803d]"
+      : status === "Review"
+        ? "bg-[#dbeafe] text-[#1d4ed8]"
+        : "bg-[#fef9c3] text-[#854d0e]"
+
+  return <span className={`rounded-full px-[10px] py-[3px] text-[11px] font-medium ${classes}`}>{status}</span>
+}
 
 export default function OneSyncLanding() {
-  const navigate = useNavigate();
-  
+  const navigate = useNavigate()
+  const goToLogin = () => navigate("/login")
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md fixed w-full top-0 z-50 border-b border-gray-100">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="Logo"
-              className="w-10 h-10 rounded-lg object-cover shadow-sm"
-            />
-            <span className="text-2xl font-bold text-blue-600">OneSync</span>
-          </div>
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-gray-600 hover:text-blue-600 transition font-medium">Features</a>
-            <a href="#how-it-works" className="text-gray-600 hover:text-blue-600 transition font-medium">How it Works</a>
-            <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition font-medium">Pricing</a>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/login')} className="text-gray-700 font-medium hover:text-blue-600 transition text-base px-4 py-2">
-              Login
+    <div className="os-home">
+      <style>{styles}</style>
+
+      <header className="sticky top-0 z-50 h-14 bg-[#0f2a52]">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-5 px-4 sm:px-6 lg:px-8">
+          <button type="button" className="flex items-center gap-3" onClick={() => window.scrollTo({ top: 0 })}>
+            <img src="/logo.png" alt="OneSync" className="h-8 w-8 rounded-md object-cover" />
+            <span className="text-[15px] font-medium text-white">OneSync</span>
+          </button>
+
+          <nav className="hidden flex-1 items-center gap-[18px] md:flex">
+            {navItems.map((item, index) => (
+              <a key={item} href={index === 0 ? "#overview" : "#platform"} className={`os-nav-link ${index === 0 ? "os-nav-link-active" : ""}`}>
+                {item}
+              </a>
+            ))}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="Open menu"
+              className="os-btn-ghost inline-flex h-9 w-9 items-center justify-center border-white/20 text-white/80 md:hidden"
+            >
+              <Menu className="h-4 w-4" />
             </button>
-            <button onClick={() => navigate('/login')} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:shadow-lg hover:scale-105 transition-all text-base">
-              Get Started Free
+            <button
+              type="button"
+              onClick={goToLogin}
+              className="hidden h-9 rounded-lg px-4 text-[13px] font-medium text-white/80 transition hover:bg-white/10 hover:text-white sm:inline-flex sm:items-center"
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={goToLogin}
+              className="h-9 rounded-lg bg-white px-4 text-[13px] font-medium text-[#1a3c6e] transition hover:bg-[#f0f4fa]"
+            >
+              Open workspace
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
-      <div className="max-w-[1400px] mx-auto px-6 sm:px-12 pt-32 pb-20">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left Content */}
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-100">
-              <Star className="w-4 h-4 text-blue-600 fill-blue-600" />
-              <span className="text-sm font-medium text-blue-700">Trusted by 10,000+ teams worldwide</span>
+      <main id="overview" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,420px)] lg:items-start">
+          <div className="os-slide-in max-w-3xl">
+            <div className="mb-4 inline-flex rounded px-2 py-1 text-xs text-[#1a3c6e]" style={{ background: "#eff6ff", border: "0.5px solid #bfdbfe" }}>
+              Project operations platform
             </div>
-            
-            <h1 className="text-5xl sm:text-6xl lg:text-[64px] leading-[1.1] font-bold text-gray-900">
-              Plan, Execute & Bill -
-              <span className="text-blue-600"> All in One Place</span>
+            <h1 className="max-w-xl text-[26px] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0f172a] sm:text-[32px]">
+              Run projects, approvals, and finance from one clean workspace.
             </h1>
-
-            <p className="text-lg text-gray-600 leading-relaxed max-w-[540px]">
-              Transform your project management with an all-in-one platform that seamlessly connects planning, execution, and billing. Boost productivity by 40% and never miss a billable hour.
+            <p className="mt-4 max-w-xl text-sm leading-[1.6] text-[#64748b]">
+              OneSync gives project managers, team members, and finance users a structured place to manage work,
+              capture time, approve expenses, and prepare billing records.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={() => navigate('/login')} className="bg-blue-600 text-white px-8 py-4 rounded-xl font-medium hover:shadow-xl hover:scale-105 transition-all text-base flex items-center justify-center gap-2">
-                Start Free Trial
-                <ArrowRight className="w-5 h-5" />
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button type="button" onClick={goToLogin} className="os-btn-primary inline-flex items-center justify-center gap-2 px-5">
+                Open workspace
+                <ArrowRight className="h-4 w-4" />
               </button>
-              <button onClick={() => navigate('/login')} className="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-medium hover:border-blue-500 hover:shadow-md transition-all text-base">
-                Watch Demo
-              </button>
+              <a href="#platform" className="os-btn-secondary inline-flex items-center justify-center gap-2 px-5">
+                View modules
+                <ChevronRight className="h-4 w-4" />
+              </a>
             </div>
 
-            {/* Trust indicators */}
-            <div className="flex items-center gap-8 pt-4">
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5 text-green-500" />
-                <span className="text-sm text-gray-600">No credit card required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5 text-green-500" />
-                <span className="text-sm text-gray-600">14-day free trial</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Content - Enhanced Mockup */}
-          <div className="relative">
-            <div className="absolute inset-0 bg-blue-400 rounded-3xl blur-3xl opacity-20"></div>
-            <div className="relative z-10">
-              <img
-                src="/laptop.png"
-                alt="OneSync dashboard preview"
-                className="w-full h-auto object-cover rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                ["Role based", "Admin, project, finance"],
+                ["Approval ready", "Timesheets and expenses"],
+                ["Finance linked", "Invoices and vendor bills"],
+              ].map(([label, value]) => (
+                <div key={label} className="os-card p-[18px]">
+                  <div className="mb-1 text-xs text-[#64748b]">{label}</div>
+                  <div className="text-sm font-medium text-[#0f172a]">{value}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Stats Section */}
-      <div className="bg-blue-600 py-16">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">10K+</div>
-              <div className="text-blue-100">Active Teams</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">1M+</div>
-              <div className="text-blue-100">Projects Completed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">40%</div>
-              <div className="text-blue-100">Time Saved</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">99.9%</div>
-              <div className="text-blue-100">Uptime</div>
-            </div>
-          </div>
-        </div>
-      </div>
+          <aside className="os-doodle os-slide-in os-delay-1 min-w-0" aria-label="OneSync workflow doodle">
+            <div className="os-doodle-line os-doodle-line-a" />
+            <div className="os-doodle-line os-doodle-line-b" />
+            <span className="os-doodle-dot right-[292px] top-[198px]" />
+            <span className="os-doodle-dot right-[132px] top-[270px]" />
 
-      {/* Features Section */}
-      <div id="features" className="bg-white py-24">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-              Everything You Need in One Platform
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Stop juggling multiple tools. OneSync brings together all your project management needs.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Feature Cards */}
-            <div className="group bg-white rounded-2xl p-8 hover:shadow-xl transition-all border-2 border-gray-100 hover:border-blue-200">
-              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <FileText className="w-7 h-7 text-white" />
+            <div className="os-doodle-card os-doodle-card-main">
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">Today</div>
+                  <div className="mt-1 text-xl font-semibold text-[#0f172a]">Operations queue</div>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eff6ff] text-[#1a3c6e]">
+                  <ClipboardList className="h-5 w-5" />
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Smart Planning</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Create visual roadmaps, set milestones, and assign tasks with drag-and-drop simplicity.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Gantt charts & timelines
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Resource allocation
-                </li>
-              </ul>
-            </div>
 
-            <div className="group bg-white rounded-2xl p-8 hover:shadow-xl transition-all border-2 border-gray-100 hover:border-blue-200">
-              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <Zap className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Agile Execution</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Kanban boards, sprint planning, and real-time collaboration to keep your team in sync.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Custom workflows
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Time tracking
-                </li>
-              </ul>
-            </div>
-
-            <div className="group bg-white rounded-2xl p-8 hover:shadow-xl transition-all border-2 border-gray-100 hover:border-blue-200">
-              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <DollarSign className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Auto Billing</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Track time automatically and generate professional invoices with one click.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Invoice templates
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Expense tracking
-                </li>
-              </ul>
-            </div>
-
-            <div className="group bg-white rounded-2xl p-8 hover:shadow-xl transition-all border-2 border-gray-100 hover:border-blue-200">
-              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <Users className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Team Collaboration</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Real-time chat, file sharing, and @mentions keep everyone connected.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Team messaging
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  File management
-                </li>
-              </ul>
-            </div>
-
-            <div className="group bg-white rounded-2xl p-8 hover:shadow-xl transition-all border-2 border-gray-100 hover:border-blue-200">
-              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Advanced Analytics</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Gain insights with customizable dashboards and real-time reporting.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Performance metrics
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Custom reports
-                </li>
-              </ul>
-            </div>
-
-            <div className="group bg-white rounded-2xl p-8 hover:shadow-xl transition-all border-2 border-gray-100 hover:border-blue-200">
-              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <Shield className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Enterprise Security</h3>
-              <p className="text-gray-600 leading-relaxed mb-4">
-                Bank-level encryption, SSO, and compliance with SOC 2 and GDPR.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  256-bit encryption
-                </li>
-                <li className="flex items-center gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-blue-600" />
-                  Role-based access
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* How It Works Section */}
-      <div id="how-it-works" className="bg-gray-50 py-24">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-              Get Started in Minutes
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              No complex setup. No training required. Start managing projects like a pro immediately.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <span className="text-3xl font-bold text-white">1</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Create Your Workspace</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Sign up and set up your team workspace in under 2 minutes. Invite team members instantly.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <span className="text-3xl font-bold text-white">2</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Build Your Projects</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Use templates or start from scratch. Add tasks, set deadlines, and assign team members.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <span className="text-3xl font-bold text-white">3</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Track & Invoice</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Monitor progress in real-time and generate invoices automatically based on tracked hours.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Testimonials Section */}
-      <div className="bg-white py-24">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-              Loved by Teams Everywhere
-            </h2>
-            <p className="text-xl text-gray-600">
-              See what our customers have to say
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 rounded-2xl p-8 border-2 border-gray-100">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              <div className="space-y-3">
+                {[
+                  ["Timesheet approvals", "12 pending", "bg-[#fef9c3] text-[#854d0e]"],
+                  ["Expense review", "5 items", "bg-[#fee2e2] text-[#b91c1c]"],
+                  ["Invoice drafts", "$42k ready", "bg-[#dcfce7] text-[#15803d]"],
+                ].map(([label, value, badgeClass]) => (
+                  <div key={label} className="flex items-center gap-3 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                    <span className="h-2 w-2 rounded-full bg-[#2563eb]" />
+                    <span className="min-w-0 flex-1 text-sm font-medium text-[#0f172a]">{label}</span>
+                    <span className={`rounded-full px-[10px] py-[3px] text-[11px] font-medium ${badgeClass}`}>{value}</span>
+                  </div>
                 ))}
               </div>
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "OneSync transformed how we manage projects. We've cut our admin time by 50% and our clients love the transparency."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 font-bold">SM</span>
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900">Sarah Martinez</div>
-                  <div className="text-sm text-gray-500">CEO, DesignCo</div>
-                </div>
+            </div>
+
+            <div className="os-doodle-card os-doodle-card-small">
+              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[#eff6ff] text-[#1a3c6e]">
+                <Users className="h-4 w-4" />
+              </div>
+              <div className="text-base font-medium text-[#0f172a]">Team synced</div>
+              <div className="mt-1 text-xs leading-[1.6] text-[#64748b]">4 roles using one project record</div>
+            </div>
+
+            <div className="os-doodle-card os-doodle-card-tiny">
+              <div className="mb-2 text-xs text-[#64748b]">Budget health</div>
+              <div className="text-[26px] font-semibold leading-[1.3] text-[#0f172a]">92%</div>
+              <div className="mt-1 text-[11px] text-[#16a34a]">On track</div>
+            </div>
+          </aside>
+
+          <div className="os-card os-hero-preview os-slide-in os-delay-1 min-w-0 overflow-hidden lg:col-span-2">
+            <div className="os-preview-toolbar flex min-h-14 flex-wrap items-center gap-3 border-b border-[#e2e8f0] bg-[#0f2a52] px-4 py-3">
+              <div className="min-w-0 text-[15px] font-medium text-white">Workspace overview</div>
+              <div className="os-preview-search ml-auto hidden h-9 w-full max-w-80 items-center gap-2 rounded-lg bg-white px-3 md:flex">
+                <Search className="h-4 w-4 text-[#94a3b8]" />
+                <span className="truncate text-xs text-[#94a3b8]">Search projects, invoices...</span>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white">
+                <Bell className="h-4 w-4" />
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-8 border-2 border-gray-100">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+            <div className="os-preview-grid grid min-h-[500px] lg:grid-cols-[240px_minmax(0,1fr)]">
+              <aside className="hidden border-r border-[#e2e8f0] bg-white p-3 lg:block">
+                {sidebarItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className={`os-sidebar-item mb-2 flex items-center gap-2 px-3 ${item.active ? "os-sidebar-item-active" : ""}`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </div>
                 ))}
-              </div>
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "The automated billing feature is a game-changer. We never miss billable hours and invoicing takes seconds."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 font-bold">JC</span>
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900">James Chen</div>
-                  <div className="text-sm text-gray-500">Founder, TechStart</div>
-                </div>
-              </div>
-            </div>
+              </aside>
 
-            <div className="bg-gray-50 rounded-2xl p-8 border-2 border-gray-100">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "Best project management tool we've used. Intuitive, powerful, and the support team is incredible."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 font-bold">EP</span>
+              <div className="os-preview-main bg-[#f0f4fa] p-4 sm:p-6">
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">
+                      Dashboard
+                    </div>
+                    <div className="mt-1 text-xl font-semibold text-[#0f172a]">Project health</div>
+                  </div>
+                  <button type="button" className="os-btn-primary inline-flex max-w-full items-center justify-center gap-2 px-4">
+                    <BriefcaseBusiness className="h-4 w-4" />
+                    <span className="truncate">New project</span>
+                  </button>
                 </div>
-                <div>
-                  <div className="font-semibold text-gray-900">Emily Parker</div>
-                  <div className="text-sm text-gray-500">PM, BuildRight</div>
+
+                <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {stats.map((stat, index) => (
+                    <div key={stat.label} className={`os-card os-fade-in os-delay-${Math.min(index, 3)} bg-[#f8fafc] p-[18px]`}>
+                      <div className="mb-[6px] text-xs text-[#64748b]">{stat.label}</div>
+                      <div className="text-[26px] font-semibold leading-[1.3] text-[#0f172a]">{stat.value}</div>
+                      <div className={`mt-1 text-[11px] ${stat.tone}`}>{stat.trend}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className="os-card os-preview-panel overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-[#e2e8f0] px-5 py-4">
+                      <div>
+                        <div className="text-base font-medium text-[#0f172a]">Priority projects</div>
+                        <div className="mt-1 text-xs text-[#64748b]">Current delivery and budget view</div>
+                      </div>
+                      <button type="button" className="os-btn-ghost hidden px-3 sm:inline-flex sm:items-center">
+                        Export
+                      </button>
+                    </div>
+
+                    <div className="os-table-scroll">
+                      <div className="os-table-grid grid grid-cols-[1.3fr_1fr_90px_90px_72px] px-5 py-3 os-table-header">
+                        <span>Project</span>
+                        <span>Owner</span>
+                        <span>Status</span>
+                        <span>Budget</span>
+                        <span className="text-right">Due</span>
+                      </div>
+                      {tableRows.map((row) => (
+                        <div
+                          key={row.project}
+                          className="os-table-grid os-table-row grid grid-cols-[1.3fr_1fr_90px_90px_72px] items-center px-5 py-3 text-sm"
+                        >
+                          <span className="font-medium text-[#0f172a]">{row.project}</span>
+                          <span className="text-[#64748b]">{row.owner}</span>
+                          <span>
+                            <StatusBadge status={row.status} />
+                          </span>
+                          <span className="text-[#0f172a]">{row.budget}</span>
+                          <span className="text-right text-[#64748b]">{row.due}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="os-card p-[18px]">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#dbeafe] text-[#1a3c6e] text-sm font-medium">
+                        AM
+                      </div>
+                      <div>
+                        <div className="text-[15px] font-medium text-[#0f172a]">Aarav Mehta</div>
+                        <div className="text-xs text-[#64748b]">Project Manager</div>
+                      </div>
+                      <span className="ml-auto rounded-full bg-[#dcfce7] px-[10px] py-[3px] text-[11px] font-medium text-[#15803d]">
+                        Active
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 border-t border-[#e2e8f0] pt-3">
+                      <div>
+                        <div className="text-[11px] text-[#94a3b8]">This week</div>
+                        <div className="text-[13px] font-medium text-[#0f172a]">42h logged</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-[#94a3b8]">Approvals</div>
+                        <div className="text-[13px] font-medium text-[#0f172a]">6 pending</div>
+                      </div>
+                    </div>
+                    <button type="button" className="os-btn-secondary mt-4 inline-flex w-full items-center justify-center gap-2">
+                      Review queue
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* CTA Section */}
-      <div className="bg-blue-600 py-24">
-        <div className="max-w-4xl mx-auto px-6 sm:px-12 text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your Workflow?
-          </h2>
-          <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Join 10,000+ teams who have streamlined their project management and billing. Start your free trial today—no credit card required.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button onClick={() => navigate('/login')} className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2 justify-center text-base w-full sm:w-auto">
-              Start Free Trial
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <button onClick={() => navigate('/login')} className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white hover:text-blue-600 transition-all text-base w-full sm:w-auto">
-              Schedule a Demo
-            </button>
-          </div>
-          <p className="text-blue-100 mt-6 text-sm">
-            14-day free trial • No credit card required • Cancel anytime
-          </p>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-12 py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-12">
-            {/* Company Info */}
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-5">
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  className="w-10 h-10 rounded-lg object-cover"
-                />
-                <span className="text-2xl font-bold text-white">OneSync</span>
+        <section id="platform" className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {modules.map((module, index) => (
+            <article key={module.title} className={`os-card os-slide-in os-delay-${Math.min(index, 3)} p-6`}>
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#eff6ff] text-[#1a3c6e]">
+                <module.icon className="h-5 w-5" />
               </div>
-              <p className="text-gray-400 mb-6 leading-relaxed">
-                Streamlining project management, execution, and billing for modern teams.
-              </p>
-              <div className="flex gap-3">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
-                  <Twitter className="w-5 h-5" />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
-                  <Linkedin className="w-5 h-5" />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
-                  <Github className="w-5 h-5" />
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
-                  <Mail className="w-5 h-5" />
-                </a>
+              <h2 className="text-base font-medium text-[#0f172a]">{module.title}</h2>
+              <p className="mt-2 text-sm leading-[1.6] text-[#64748b]">{module.copy}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.78fr]">
+          <div className="os-card p-6">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">Workflow</div>
+                <h2 className="mt-2 text-xl font-semibold text-[#0f172a]">Simple operational path</h2>
               </div>
+              <span className="rounded bg-[#eff6ff] px-2 py-1 text-xs text-[#1a3c6e]" style={{ border: "0.5px solid #bfdbfe" }}>
+                4-stage process
+              </span>
             </div>
-
-            {/* Product */}
-            <div>
-              <h4 className="text-white font-bold mb-4">Product</h4>
-              <ul className="space-y-3">
-                <li><a href="#features" className="hover:text-blue-400 transition">Features</a></li>
-                <li><a href="#pricing" className="hover:text-blue-400 transition">Pricing</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Integrations</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Updates</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Roadmap</a></li>
-              </ul>
-            </div>
-
-            {/* Company */}
-            <div>
-              <h4 className="text-white font-bold mb-4">Company</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="hover:text-blue-400 transition">About Us</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Careers</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Blog</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Press</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Contact</a></li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="text-white font-bold mb-4">Support</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="hover:text-blue-400 transition">Help Center</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Documentation</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">API Reference</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Community</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Status</a></li>
-              </ul>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {processSteps.map((step, index) => (
+                <div key={step} className="flex items-center gap-3 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-xs font-medium text-[#1a3c6e]">
+                    {index + 1}
+                  </div>
+                  <span className="text-sm text-[#0f172a]">{step}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Bottom Bar */}
-          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-400 text-sm">
-              © 2025 OneSync. All rights reserved.
+          <div className="os-card p-6">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#eff6ff] text-[#1a3c6e]">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <h2 className="text-xl font-semibold text-[#0f172a]">Built for controlled access</h2>
+            <p className="mt-3 text-sm leading-[1.6] text-[#64748b]">
+              Admin, project manager, finance, and team dashboards stay separated by role while using the same
+              operational records.
             </p>
-            <div className="flex gap-6 text-sm">
-              <a href="#" className="text-gray-400 hover:text-blue-400 transition">Privacy Policy</a>
-              <a href="#" className="text-gray-400 hover:text-blue-400 transition">Terms of Service</a>
-              <a href="#" className="text-gray-400 hover:text-blue-400 transition">Cookie Policy</a>
+            <div className="mt-5 space-y-3">
+              {["Protected routes", "Role-aware navigation", "Audit-friendly records"].map((item) => (
+                <div key={item} className="flex items-center gap-2 text-sm text-[#0f172a]">
+                  <CheckCircle2 className="h-4 w-4 text-[#16a34a]" />
+                  {item}
+                </div>
+              ))}
             </div>
+          </div>
+        </section>
+
+        <section className="os-card mt-8 flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#64748b]">Get started</div>
+            <h2 className="mt-2 text-xl font-semibold text-[#0f172a]">Continue into your OneSync workspace.</h2>
+            <p className="mt-2 text-sm leading-[1.6] text-[#64748b]">
+              Use the existing sign-in flow to access projects, timesheets, expenses, and finance dashboards.
+            </p>
+          </div>
+          <button type="button" onClick={goToLogin} className="os-btn-primary inline-flex shrink-0 items-center justify-center gap-2 px-5">
+            Open workspace
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </section>
+      </main>
+
+      <footer className="mx-auto max-w-7xl px-4 pb-8 pt-2 text-xs text-[#64748b] sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-2 border-t border-[#e2e8f0] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <span>OneSync project operations</span>
+          <div className="flex gap-5">
+            <a href="#overview" className="hover:text-[#1a3c6e]">Overview</a>
+            <a href="#platform" className="hover:text-[#1a3c6e]">Platform</a>
+            <button type="button" onClick={goToLogin} className="hover:text-[#1a3c6e]">Sign in</button>
           </div>
         </div>
       </footer>
     </div>
-  );
+  )
 }

@@ -19,6 +19,7 @@ import VendorBillFromPoPage from "./pages/VendorBillFromPoPage"
 import VendorBillViewPage from "./pages/VendorBillViewPage"
 import { AnalyticsPage } from "./pages/AnalyticsPage"
 import { ProfilePage } from "./pages/ProfilePage"
+import ProjectsPage from "./pages/ProjectsPage"
 import ProjectCreatePage from "./pages/ProjectCreatePage"
 import TasksPage from "./pages/TasksPage"
 import SettingsPage from "./pages/SettingsPage"
@@ -32,9 +33,9 @@ const queryClient = new QueryClient()
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
   return token ? (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[#f0f4fa] text-[#0f172a]">
       <Navbar />
-      <main className="flex-1 p-4">{children}</main>
+      <main className="min-w-0 flex-1">{children}</main>
     </div>
   ) : (
     <Navigate to="/login" replace />
@@ -219,6 +220,15 @@ export function App() {
           />
 
           {/* NEW PROJECT (remove the extra <Routes>, keep this single Route) */}
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/projects/new"
             element={

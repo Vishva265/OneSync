@@ -1,1 +1,0 @@
-{"version":3,"file":"sign-up.dto.d.ts","sourceRoot":"","sources":["../../../../src/modules/auth/dto/sign-up.dto.ts"],"names":[],"mappings":"AAGA,oBAAY,QAAQ;IAClB,KAAK,UAAU;IACf,eAAe,oBAAoB;IACnC,WAAW,gBAAgB;IAC3B,OAAO,YAAY;CACpB;AAED,qBAAa,SAAS;IACT,KAAK,EAAE,MAAM,CAAA;IAEV,QAAQ,EAAE,MAAM,CAAA;IAEhB,QAAQ,EAAE,MAAM,CAAA;IAG9B,IAAI,EAAE,QAAQ,CAAA;CACf"}

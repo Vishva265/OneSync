@@ -1,0 +1,332 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); color: var(--color-text-primary); }
+  .section { margin-bottom: 2.5rem; }
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--color-text-tertiary); text-transform: uppercase; margin-bottom: 1rem; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+  .swatch { border-radius: 8px; padding: 12px 16px; font-size: 13px; font-weight: 500; min-width: 120px; }
+  .font-demo { padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .btn { padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
+  .btn-primary { background: #1a3c6e; color: #fff; }
+  .btn-secondary { background: transparent; color: #1a3c6e; border: 1.5px solid #1a3c6e; }
+  .btn-ghost { background: transparent; color: var(--color-text-secondary); border: 0.5px solid var(--color-border-secondary); }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 6px; }
+  .input-demo { width: 100%; padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 14px; outline: none; }
+  .input-demo:focus { border-color: #1a3c6e; box-shadow: 0 0 0 3px rgba(26,60,110,0.12); }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .card-demo { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 12px; padding: 18px; }
+  .stat-card { background: var(--color-background-secondary); border-radius: 8px; padding: 14px 18px; min-width: 130px; flex: 1; }
+  .nav-demo { background: #0f2a52; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 20px; }
+  .nav-link { color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 500; cursor: pointer; }
+  .nav-link.active { color: #fff; }
+  .nav-brand { color: #fff; font-size: 15px; font-weight: 500; }
+  .sidebar-item { padding: 8px 12px; border-radius: 7px; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .sidebar-item.active { background: rgba(26,60,110,0.12); color: #1a3c6e; font-weight: 500; }
+  .sidebar-item.inactive { color: var(--color-text-secondary); }
+  .divider { height: 0.5px; background: var(--color-border-tertiary); margin: 1.5rem 0; }
+  .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; }
+</style>
+
+<div style="padding: 1rem 0;">
+
+  <div class="section">
+    <div class="section-label">Brand Color Palette</div>
+    <div class="row">
+      <div class="swatch" style="background:#0f2a52; color:#e8eef7;">Deep Navy<br><span style="font-size:11px;opacity:0.7;">#0f2a52 — Sidebar/Nav</span></div>
+      <div class="swatch" style="background:#1a3c6e; color:#e8eef7;">Primary Blue<br><span style="font-size:11px;opacity:0.7;">#1a3c6e — Buttons/CTA</span></div>
+      <div class="swatch" style="background:#2563eb; color:#fff;">Accent Blue<br><span style="font-size:11px;opacity:0.7;">#2563eb — Links/Highlights</span></div>
+      <div class="swatch" style="background:#f0f4fa; color:#1a3c6e; border: 0.5px solid #d1ddf0;">Light Base<br><span style="font-size:11px;opacity:0.6;">#f0f4fa — Page BG</span></div>
+      <div class="swatch" style="background:#fff; color:#334155; border: 0.5px solid #e2e8f0;">White Surface<br><span style="font-size:11px;opacity:0.6;">#ffffff — Cards</span></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="swatch" style="background:#16a34a; color:#fff;">Success<br><span style="font-size:11px;opacity:0.8;">#16a34a</span></div>
+      <div class="swatch" style="background:#f59e0b; color:#fff;">Warning<br><span style="font-size:11px;opacity:0.8;">#f59e0b</span></div>
+      <div class="swatch" style="background:#dc2626; color:#fff;">Danger<br><span style="font-size:11px;opacity:0.8;">#dc2626</span></div>
+      <div class="swatch" style="background:#64748b; color:#fff;">Neutral<br><span style="font-size:11px;opacity:0.8;">#64748b</span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Typography — Inter Font Family</div>
+    <div class="font-demo" style="margin-bottom:10px;">
+      <div style="font-size:26px; font-weight:600; color:var(--color-text-primary); letter-spacing:-0.02em;">Page Title — Inter 600, 26px</div>
+    </div>
+    <div class="font-demo" style="margin-bottom:10px;">
+      <div style="font-size:20px; font-weight:600; color:var(--color-text-primary);">Section Heading — Inter 600, 20px</div>
+    </div>
+    <div class="font-demo" style="margin-bottom:10px;">
+      <div style="font-size:16px; font-weight:500; color:var(--color-text-primary);">Card Title — Inter 500, 16px</div>
+    </div>
+    <div class="font-demo" style="margin-bottom:10px;">
+      <div style="font-size:14px; font-weight:400; color:var(--color-text-primary); line-height:1.6;">Body Text — Inter 400, 14px, line-height 1.6. Used for descriptions, paragraphs, form hints.</div>
+    </div>
+    <div class="font-demo">
+      <div style="font-size:12px; font-weight:400; color:var(--color-text-secondary);">Small / Label — Inter 400, 12px. Used for table headers, secondary metadata.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Buttons</div>
+    <div class="row" style="align-items:center;">
+      <button class="btn btn-primary">Primary Action</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-danger">Delete</button>
+      <button class="btn btn-primary btn-sm">Small</button>
+    </div>
+    <div style="margin-top:12px; font-size:12px; color:var(--color-text-secondary); line-height:1.7;">
+      Border-radius: 8px &nbsp;·&nbsp; Font-weight: 500 &nbsp;·&nbsp; No uppercase &nbsp;·&nbsp; Hover: darken 8% &nbsp;·&nbsp; Focus ring: 3px offset
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Badges & Status Tags</div>
+    <div class="row">
+      <span class="badge" style="background:#dcfce7; color:#15803d;">Active</span>
+      <span class="badge" style="background:#fef9c3; color:#854d0e;">On Leave</span>
+      <span class="badge" style="background:#fee2e2; color:#b91c1c;">Terminated</span>
+      <span class="badge" style="background:#dbeafe; color:#1d4ed8;">Probation</span>
+      <span class="badge" style="background:#f3f4f6; color:#374151;">Inactive</span>
+      <span class="tag" style="background:#eff6ff; color:#1a3c6e; border:0.5px solid #bfdbfe;">Engineering</span>
+      <span class="tag" style="background:#fdf4ff; color:#7e22ce; border:0.5px solid #e9d5ff;">HR</span>
+      <span class="tag" style="background:#fff7ed; color:#c2410c; border:0.5px solid #fed7aa;">Finance</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Form Inputs</div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div>
+        <div style="font-size:12px; font-weight:500; color:var(--color-text-secondary); margin-bottom:5px;">Employee Name</div>
+        <input class="input-demo" type="text" placeholder="e.g. Priya Sharma" />
+      </div>
+      <div>
+        <div style="font-size:12px; font-weight:500; color:var(--color-text-secondary); margin-bottom:5px;">Department</div>
+        <select class="input-demo">
+          <option>Engineering</option>
+          <option>Human Resources</option>
+          <option>Finance</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:10px; font-size:12px; color:var(--color-text-secondary);">Border: 1.5px on focus (primary blue) &nbsp;·&nbsp; Focus shadow: 3px rgba blue &nbsp;·&nbsp; Height: 40px &nbsp;·&nbsp; Radius: 8px</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Navigation Bar</div>
+    <div class="nav-demo">
+      <div class="nav-brand">HRpulse</div>
+      <div style="flex:1;display:flex;gap:18px;">
+        <span class="nav-link active">Dashboard</span>
+        <span class="nav-link">Employees</span>
+        <span class="nav-link">Payroll</span>
+        <span class="nav-link">Leave</span>
+        <span class="nav-link">Reports</span>
+      </div>
+      <div class="avatar" style="background:rgba(255,255,255,0.15); color:#fff; font-size:12px;">PS</div>
+    </div>
+    <div style="margin-top:8px; font-size:12px; color:var(--color-text-secondary);">Background: #0f2a52 (Deep Navy) &nbsp;·&nbsp; Height: 56px &nbsp;·&nbsp; Active tab: white &nbsp;·&nbsp; Inactive: 60% white</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Sidebar Navigation</div>
+    <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:12px; padding:12px; width:220px;">
+      <div class="sidebar-item active">
+        <span style="font-size:14px;">&#9632;</span> Dashboard
+      </div>
+      <div class="sidebar-item inactive">
+        <span style="font-size:14px;">&#9632;</span> Employees
+      </div>
+      <div class="sidebar-item inactive">
+        <span style="font-size:14px;">&#9632;</span> Payroll
+      </div>
+      <div class="sidebar-item inactive">
+        <span style="font-size:14px;">&#9632;</span> Attendance
+      </div>
+      <div class="sidebar-item inactive">
+        <span style="font-size:14px;">&#9632;</span> Leave Management
+      </div>
+    </div>
+    <div style="margin-top:8px; font-size:12px; color:var(--color-text-secondary);">Active: blue tint bg + primary blue text &nbsp;·&nbsp; Width: 240px &nbsp;·&nbsp; White surface &nbsp;·&nbsp; Item height: 40px</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Stat Cards (Dashboard)</div>
+    <div class="row">
+      <div class="stat-card">
+        <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:6px;">Total Employees</div>
+        <div style="font-size:26px; font-weight:600; color:var(--color-text-primary);">248</div>
+        <div style="font-size:11px; color:#16a34a; margin-top:4px;">+12 this month</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:6px;">On Leave Today</div>
+        <div style="font-size:26px; font-weight:600; color:var(--color-text-primary);">14</div>
+        <div style="font-size:11px; color:#f59e0b; margin-top:4px;">5.6% of workforce</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:6px;">Open Positions</div>
+        <div style="font-size:26px; font-weight:600; color:var(--color-text-primary);">7</div>
+        <div style="font-size:11px; color:#dc2626; margin-top:4px;">3 urgent</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:6px;">Payroll (Monthly)</div>
+        <div style="font-size:26px; font-weight:600; color:var(--color-text-primary);">₹48L</div>
+        <div style="font-size:11px; color:#16a34a; margin-top:4px;">On track</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Employee Card</div>
+    <div class="card-demo" style="max-width:320px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <div class="avatar" style="background:#dbeafe; color:#1a3c6e; font-size:13px; width:44px; height:44px;">PS</div>
+        <div>
+          <div style="font-size:15px; font-weight:500;">Priya Sharma</div>
+          <div style="font-size:12px; color:var(--color-text-secondary);">Senior Designer · Engineering</div>
+        </div>
+        <span class="badge" style="background:#dcfce7; color:#15803d; margin-left:auto;">Active</span>
+      </div>
+      <div style="border-top:0.5px solid var(--color-border-tertiary); padding-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div>
+          <div style="font-size:11px; color:var(--color-text-tertiary);">Join Date</div>
+          <div style="font-size:13px; font-weight:500;">Mar 2021</div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--color-text-tertiary);">Employee ID</div>
+          <div style="font-size:13px; font-weight:500;">EMP-0042</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-label">Spacing & Radius Reference</div>
+    <div style="font-size:13px; color:var(--color-text-secondary); line-height:2;">
+      Page padding: <b style="color:var(--color-text-primary);">24px–32px</b> &nbsp;·&nbsp;
+      Section gap: <b style="color:var(--color-text-primary);">32px</b> &nbsp;·&nbsp;
+      Card padding: <b style="color:var(--color-text-primary);">18px–24px</b><br>
+      Card radius: <b style="color:var(--color-text-primary);">12px</b> &nbsp;·&nbsp;
+      Button radius: <b style="color:var(--color-text-primary);">8px</b> &nbsp;·&nbsp;
+      Badge radius: <b style="color:var(--color-text-primary);">999px (pill)</b> &nbsp;·&nbsp;
+      Input radius: <b style="color:var(--color-text-primary);">8px</b><br>
+      Table row height: <b style="color:var(--color-text-primary);">48px</b> &nbsp;·&nbsp;
+      Nav height: <b style="color:var(--color-text-primary);">56px</b> &nbsp;·&nbsp;
+      Sidebar width: <b style="color:var(--color-text-primary);">240px</b>
+    </div>
+  </div>
+
+</div>
+<div>
+  HRMS Website Design System Prompt
+Overall Vision: Clean, trustworthy, and data-forward. Think enterprise-grade but without feeling cold. The UI should feel like a premium SaaS product (think Rippling or Keka HR).
+
+Colors
+Primary palette — Navy-Blue corporate scheme:
+
+Deep Navy #0f2a52 → sidebar, navbar backgrounds
+Primary Blue #1a3c6e → primary buttons, active states, links
+Accent Blue #2563eb → highlights, focus rings, interactive hover
+Page Background #f0f4fa → very light blue-gray, never pure white for page bg
+Card Surface #ffffff → cards, modals, panels
+Border #e2e8f0 → all dividers and card edges
+
+Semantic colors — use these only for their meaning, never for decoration:
+
+Success #16a34a, Warning #f59e0b, Danger #dc2626, Info #2563eb
+
+
+Typography
+Use Inter as the only font (import from Google Fonts). Never mix fonts.
+UseSizeWeightPage Title26px600Section Heading20px600Card Title16px500Body / Description14px400Label / Meta12px400Table Header11px500, uppercase, letter-spacing 0.06em
+Line height: 1.6 for body, 1.3 for headings. Never use font-weight 700+ — it looks heavy.
+
+Buttons
+
+Border-radius: 8px
+Font-weight: 500, never uppercase, sentence case only
+Height: 40px default, 32px small
+Primary: bg #1a3c6e, white text — for main actions (Save, Submit, Add Employee)
+Secondary: transparent bg, 1.5px solid #1a3c6e, navy text — for secondary actions
+Ghost: 0.5px solid #e2e8f0, gray text — for cancel/close
+Danger: bg #dc2626, white — for delete/terminate only
+Hover: darken by 8%, cursor pointer, transition 150ms
+Focus: 3px rgba(26,60,110,0.15) box-shadow ring
+
+
+Navigation
+
+Top Navbar: height 56px, background #0f2a52, white brand logo on left, nav links center (60% white opacity, 100% white when active), avatar on right
+Sidebar: width 240px, white surface with 0.5px border-right, icons + labels, active item gets rgba(26,60,110,0.10) background + navy text, 40px item height, 8px border-radius per item
+
+
+Cards & Layout
+
+Card: background white, border 0.5px solid #e2e8f0, border-radius 12px, padding 18px–24px
+Page background: #f0f4fa, padding 24px–32px
+Section gap: 32px between major sections, 16px between cards in a grid
+Stat cards: lighter #f8fafc background, big number (26px 600), small label above, trend note below in green/red
+
+
+Forms & Inputs
+
+Input height: 40px, border-radius 8px
+Default border: 1.5px solid #d1d5db
+Focus border: 1.5px solid #1a3c6e + box-shadow 0 0 0 3px rgba(26,60,110,0.12)
+Label: 12px 500 above input, 4px gap
+Error state: border turns #dc2626, show error text in red below
+Placeholder: #9ca3af
+
+
+Badges & Status Tags
+
+Always use pill shape (border-radius 999px)
+font-size 11px, font-weight 500, padding 3px 10px
+Active: green bg #dcfce7, text #15803d
+On Leave: yellow bg #fef9c3, text #854d0e
+Terminated: red bg #fee2e2, text #b91c1c
+Probation: blue bg #dbeafe, text #1d4ed8
+Department tags: square pill border-radius 4px with colored border
+
+
+Tables
+
+Header row: background #f8fafc, font-size 11px uppercase, letter-spacing 0.06em, color #64748b
+Row height: 48px, border-bottom 0.5px solid #f1f5f9
+Hover row: background #f8fafc
+Action column: always last, right-aligned, icon buttons only (edit/delete)
+Pagination: below table, centered, 8px border-radius on page buttons
+
+
+Shadows & Depth
+Do not use heavy shadows anywhere. Use only:
+
+Card subtle shadow: box-shadow: 0 1px 4px rgba(0,0,0,0.06) (optional, very light)
+Dropdown/Modal: box-shadow: 0 8px 24px rgba(0,0,0,0.10)
+No gradients, no blurs, no glass effects
+
+
+Spacing System (8px base)
+4 / 8 / 12 / 16 / 24 / 32 / 48px — stick only to these values everywhere.
+</div>
