@@ -1,4 +1,4 @@
-# OneFlow Backend
+# OneSync Backend
 
 Unified project management & finance platform - Plan, Execute, Bill.
 
@@ -19,8 +19,8 @@ Unified project management & finance platform - Plan, Execute, Bill.
 docker-compose up --build
 
 # In another terminal, run migrations and seed
-docker exec oneflow_backend npm run db:migrate:deploy
-docker exec oneflow_backend npm run db:seed
+docker exec onesync_backend npm run db:migrate:deploy
+docker exec onesync_backend npm run db:seed
 \`\`\`
 
 The backend will be running on `http://localhost:3000` and Swagger docs at `http://localhost:3000/api/docs`.
@@ -188,14 +188,14 @@ CORS_ORIGIN           Comma-separated allowed origins
 
 \`\`\`bash
 # Build image
-docker build -t oneflow-backend:1.0.0 .
+docker build -t onesync-backend:1.0.0 .
 
 # Run container
 docker run \
   -e DATABASE_URL="postgresql://..." \
   -e JWT_SECRET="your-secret" \
   -p 3000:3000 \
-  oneflow-backend:1.0.0
+  onesync-backend:1.0.0
 \`\`\`
 
 ### Health Check
@@ -208,10 +208,10 @@ curl http://localhost:3000/api/docs
 
 \`\`\`bash
 # Backup PostgreSQL
-pg_dump oneflow_dev > backup.sql
+pg_dump onesync_dev > backup.sql
 
 # Restore
-psql oneflow_dev < backup.sql
+psql onesync_dev < backup.sql
 \`\`\`
 
 ## Troubleshooting

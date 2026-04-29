@@ -1,4 +1,4 @@
-# OneFlow Frontend
+# OneSync Frontend
 
 Modern React application for project management and finance.
 
@@ -30,10 +30,10 @@ VITE_API_URL=http://localhost:3000
 
 ## Test Credentials
 
-- **Admin**: admin@oneflow.local / admin@123
-- **PM**: pm@oneflow.local / pm@123
-- **Finance**: finance@oneflow.local / finance@123
-- **Team Member**: team@oneflow.local / team@123
+- **Admin**: admin@onesync.local / admin@123
+- **PM**: pm@onesync.local / pm@123
+- **Finance**: finance@onesync.local / finance@123
+- **Team Member**: team@onesync.local / team@123
 
 ## Features
 

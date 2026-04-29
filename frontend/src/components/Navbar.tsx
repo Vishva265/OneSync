@@ -51,11 +51,11 @@ export function Navbar() {
           >
             <img 
               src="/logo.png"
-              alt="OneFlow Logo"
+              alt="OneSync Logo"
               className="w-9 h-9 shadow-sm transition transform group-hover:scale-105"
             />
             <span className="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-blue-600 transition">
-              OneFlow
+              OneSync
             </span>
           </div>
 

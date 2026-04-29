@@ -30,7 +30,7 @@ async function main() {
   const adminPassword = await bcrypt.hash("admin@123", 10)
   const admin = await prisma.user.create({
     data: {
-      email: "admin@oneflow.com",
+      email: "admin@onesync.com",
       passwordHash: adminPassword,
       fullName: "Admin User",
       role: "ADMIN",
@@ -43,7 +43,7 @@ async function main() {
   const pmPassword = await bcrypt.hash("pm@123", 10)
   const pm = await prisma.user.create({
     data: {
-      email: "pm@oneflow.local",
+      email: "pm@onesync.local",
       passwordHash: pmPassword,
       fullName: "Project Manager",
       role: "PROJECT_MANAGER",
@@ -56,7 +56,7 @@ async function main() {
   const financePassword = await bcrypt.hash("finance@123", 10)
   const finance = await prisma.user.create({
     data: {
-      email: "finance@oneflow.local",
+      email: "finance@onesync.local",
       passwordHash: financePassword,
       fullName: "Finance Officer",
       role: "FINANCE",
@@ -69,7 +69,7 @@ async function main() {
   const teamPassword = await bcrypt.hash("team@123", 10)
   const teamMember = await prisma.user.create({
     data: {
-      email: "team@oneflow.local",
+      email: "team@onesync.local",
       passwordHash: teamPassword,
       fullName: "Team Member",
       role: "TEAM_MEMBER",
@@ -220,10 +220,10 @@ async function main() {
 
   console.log("✓ Seed data created successfully!")
   console.log("\n📝 Test Credentials:")
-  console.log("  Admin:   admin@oneflow.local / admin@123")
-  console.log("  PM:      pm@oneflow.local / pm@123")
-  console.log("  Finance: finance@oneflow.local / finance@123")
-  console.log("  Team:    team@oneflow.local / team@123")
+  console.log("  Admin:   admin@onesync.local / admin@123")
+  console.log("  PM:      pm@onesync.local / pm@123")
+  console.log("  Finance: finance@onesync.local / finance@123")
+  console.log("  Team:    team@onesync.local / team@123")
 }
 
 main()

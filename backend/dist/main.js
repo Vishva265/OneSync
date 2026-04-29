@@ -19,7 +19,7 @@ async function bootstrap() {
     });
     // Swagger/OpenAPI
     const config = new swagger_1.DocumentBuilder()
-        .setTitle("OneFlow API")
+        .setTitle("OneSync API")
         .setDescription("Unified project management & finance platform - Plan, Execute, Bill")
         .setVersion("1.0")
         .addBearerAuth()
@@ -28,7 +28,7 @@ async function bootstrap() {
     swagger_1.SwaggerModule.setup("api/docs", app, document);
     const port = process.env.PORT || 3000;
     await app.listen(port);
-    console.log(`✓ OneFlow Backend running on http://localhost:${port}`);
+    console.log(`✓ OneSync Backend running on http://localhost:${port}`);
     console.log(`✓ Swagger docs available at http://localhost:${port}/api/docs`);
 }
 bootstrap();

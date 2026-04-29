@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a comprehensive guide to the three ERP scenarios that have been implemented in your OneFlow system.
+This document provides a comprehensive guide to the three ERP scenarios that have been implemented in your OneSync system.
 
 ## 🎯 Implemented Scenarios
 

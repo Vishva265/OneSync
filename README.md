@@ -1,4 +1,4 @@
-# OneFlow MVP — Complete Setup
+# OneSync MVP — Complete Setup
 
 Unified project management & finance platform: **Plan • Execute • Bill**.
 
@@ -27,14 +27,14 @@ Unified project management & finance platform: **Plan • Execute • Bill**.
 \`\`\`bash
 # Clone repository (if applicable)
 git clone <repo>
-cd oneflow
+cd onesync
 
 # Start all services (backend, frontend, database, redis)
 docker-compose up --build
 
 # In another terminal, initialize database
-docker exec oneflow_backend npm run db:migrate:deploy
-docker exec oneflow_backend npm run db:seed
+docker exec onesync_backend npm run db:migrate:deploy
+docker exec onesync_backend npm run db:seed
 \`\`\`
 
 **Done!** Services now running:
@@ -51,22 +51,22 @@ docker exec oneflow_backend npm run db:seed
 
 \`\`\`
 👤 Admin
-   Email:    admin@oneflow.local
+   Email:    admin@onesync.local
    Password: admin@123
    Role:     ADMIN (full access)
 
 👨‍💼 Project Manager
-   Email:    pm@oneflow.local
+   Email:    pm@onesync.local
    Password: pm@123
    Role:     PROJECT_MANAGER
 
 💰 Finance Officer
-   Email:    finance@oneflow.local
+   Email:    finance@onesync.local
    Password: finance@123
    Role:     FINANCE
 
 👨‍💻 Team Member
-   Email:    team@oneflow.local
+   Email:    team@onesync.local
    Password: team@123
    Role:     TEAM_MEMBER
 \`\`\`
@@ -75,7 +75,7 @@ docker exec oneflow_backend npm run db:seed
 
 \`\`\`
 ┌─────────────────────────────────────────────────────────────┐
-│                     OneFlow MVP Stack                       │
+│                     OneSync MVP Stack                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  Frontend (React 18 + Vite)          Backend (NestJS)      │
@@ -151,7 +151,7 @@ docker exec oneflow_backend npm run db:seed
 ## 📁 Project Structure
 
 \`\`\`
-oneflow/
+onesync/
 ├── backend/                    # NestJS application
 │   ├── src/
 │   │   ├── modules/           # Feature modules
@@ -345,14 +345,14 @@ npm run preview
 
 \`\`\`bash
 # Build backend image
-docker build -t oneflow-backend:1.0.0 ./backend
+docker build -t onesync-backend:1.0.0 ./backend
 
 # Build frontend image
-docker build -t oneflow-frontend:1.0.0 ./frontend
+docker build -t onesync-frontend:1.0.0 ./frontend
 
 # Run with Docker
-docker run -p 3000:3000 oneflow-backend:1.0.0
-docker run -p 5173:5173 oneflow-frontend:1.0.0
+docker run -p 3000:3000 onesync-backend:1.0.0
+docker run -p 5173:5173 onesync-frontend:1.0.0
 \`\`\`
 
 ## 🚢 Deployment
@@ -372,8 +372,8 @@ vercel
 
 \`\`\`bash
 # Push images to container registry
-docker tag oneflow-backend:1.0.0 my-registry/oneflow-backend:1.0.0
-docker push my-registry/oneflow-backend:1.0.0
+docker tag onesync-backend:1.0.0 my-registry/onesync-backend:1.0.0
+docker push my-registry/onesync-backend:1.0.0
 
 # Deploy with Kubernetes manifests or cloud provider CLI
 \`\`\`
@@ -386,7 +386,7 @@ ssh user@vps-ip
 
 # Clone repo, start with docker-compose
 git clone <repo>
-cd oneflow
+cd onesync
 docker-compose -f docker-compose.prod.yml up -d
 \`\`\`
 
@@ -394,7 +394,7 @@ docker-compose -f docker-compose.prod.yml up -d
 
 \`\`\`env
 # Backend (.env)
-DATABASE_URL=postgresql://user:pass@prod-db:5432/oneflow
+DATABASE_URL=postgresql://user:pass@prod-db:5432/onesync
 JWT_SECRET=<strong-random-key>
 NODE_ENV=production
 CORS_ORIGIN=https://yourapp.com
@@ -430,19 +430,19 @@ npm run db:migrate:deploy
 ### Backend Logs
 
 \`\`\`bash
-docker logs -f oneflow_backend
+docker logs -f onesync_backend
 \`\`\`
 
 ### Database Logs
 
 \`\`\`bash
-docker logs -f oneflow_postgres
+docker logs -f onesync_postgres
 \`\`\`
 
 ### Frontend Logs
 
 \`\`\`bash
-docker logs -f oneflow_frontend
+docker logs -f onesync_frontend
 \`\`\`
 
 ## 🐛 Troubleshooting
@@ -464,10 +464,10 @@ kill -9 <PID>
 docker ps | grep postgres
 
 # Verify connection string in .env
-DATABASE_URL=postgresql://user:pass@localhost:5432/oneflow_dev
+DATABASE_URL=postgresql://user:pass@localhost:5432/onesync_dev
 
 # Test connection
-psql postgresql://oneflow_user:oneflow_pass@localhost:5432/oneflow_dev
+psql postgresql://onesync_user:onesync_pass@localhost:5432/onesync_dev
 \`\`\`
 
 ### Migrations Not Running
@@ -520,7 +520,7 @@ MIT
 
 ---
 
-**OneFlow MVP** | Built with ❤️ for project management & finance  
+**OneSync MVP** | Built with ❤️ for project management & finance  
 Version 1.0.0 | November 2025
 #   O d o o I I G N - L o c a l  
  

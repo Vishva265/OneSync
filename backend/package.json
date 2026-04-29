@@ -1,8 +1,8 @@
 {
-  "name": "oneflow-backend",
+  "name": "onesync-backend",
   "version": "1.0.0",
-  "description": "OneFlow - Project Management & Finance Backend",
-  "author": "OneFlow Team",
+  "description": "OneSync - Project Management & Finance Backend",
+  "author": "OneSync Team",
   "private": true,
   "license": "MIT",
   "scripts": {

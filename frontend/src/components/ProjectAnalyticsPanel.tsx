@@ -13,7 +13,7 @@ import { tasksApi } from "@/api/tasks"
 import { timesheetsApi } from "@/api/timesheets"
 import { projectsApi } from "@/api/projects"
 
-const COLORS = ["#2563EB", "#10B981", "#F59E0B", "#F97316", "#8B5CF6", "#0F172A"] // tuned to OneFlow palette
+const COLORS = ["#2563EB", "#10B981", "#F59E0B", "#F97316", "#8B5CF6", "#0F172A"] // tuned to OneSync palette
 
 type Props = {
   projectId: string

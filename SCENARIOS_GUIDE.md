@@ -1,6 +1,6 @@
 # ERP Scenarios Implementation Guide
 
-This guide explains how to use the three main ERP scenarios implemented in OneFlow.
+This guide explains how to use the three main ERP scenarios implemented in OneSync.
 
 ## Scenario 1: Fixed-Price Project with Milestone-Based Invoicing
 
