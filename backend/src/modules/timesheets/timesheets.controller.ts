@@ -20,7 +20,7 @@ export class TimesheetsController {
 
     // Optional: default TEAM_MEMBER to their own timesheets if no user filter supplied
     if (!filters.userId && req?.user?.role === "TEAM_MEMBER") {
-      filters.userId = req.user.id
+      filters.userId = req.user.userId ?? req.user.id ?? req.user.sub
     }
 
     return this.timesheetsService.findAll(filters)
@@ -32,8 +32,9 @@ export class TimesheetsController {
   }
 
   @Post()
-  async create(@Body() body: any) {
-    return this.timesheetsService.create(body)
+  async create(@Req() req: any, @Body() body: any) {
+    const userId = req?.user?.userId ?? req?.user?.id ?? req?.user?.sub
+    return this.timesheetsService.create(body, userId)
   }
 
   @Put(":id")

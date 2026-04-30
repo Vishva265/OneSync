@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Param } from "@nestjs/common"
+import { Controller, Get, Post, Body, UseGuards, Param, Query } from "@nestjs/common"
 import { ApiTags, ApiBearerAuth, ApiBody } from "@nestjs/swagger"
 import { JwtAuthGuard } from "@/common/guards/jwt.guard"
 import { RbacGuard } from "@/common/guards/rbac.guard"
@@ -13,8 +13,8 @@ export class FinanceController {
   constructor(private financeService: FinanceService) {}
 
   @Get("sales-orders")
-  async getSalesOrders(query: any) {
-    return this.financeService.getSalesOrders(query)
+  async getSalesOrders(@Query() query: any) {
+    return this.financeService.getSalesOrders(this.projectFilters(query))
   }
 
   @Post('sales-orders')
@@ -38,8 +38,8 @@ export class FinanceController {
 
   // Purchase Orders
   @Get('purchase-orders')
-  async getPurchaseOrders(query: any) {
-    return this.financeService.getPurchaseOrders(query)
+  async getPurchaseOrders(@Query() query: any) {
+    return this.financeService.getPurchaseOrders(this.projectFilters(query))
   }
 
   @Get('purchase-orders/:id')
@@ -56,8 +56,8 @@ export class FinanceController {
 
   // Vendor Bills
   @Get('vendor-bills')
-  async getVendorBills(query: any) {
-    return this.financeService.getVendorBills(query)
+  async getVendorBills(@Query() query: any) {
+    return this.financeService.getVendorBills(this.projectFilters(query))
   }
 
   @Get('vendor-bills/:id')
@@ -73,8 +73,8 @@ export class FinanceController {
   }
 
   @Get("invoices")
-  async getInvoices(projectId?: string) {
-    return this.financeService.getInvoices(projectId)
+  async getInvoices(@Query("project") project?: string, @Query("projectId") projectId?: string) {
+    return this.financeService.getInvoices(projectId || project)
   }
 
   @Post('invoices/from-timesheets')
@@ -143,5 +143,13 @@ export class FinanceController {
     @Body() body: { project_id: string; expense_ids: string[] },
   ) {
     return this.financeService.createInvoiceFromExpenses(body.project_id, body.expense_ids);
+  }
+
+  private projectFilters(query: any) {
+    const filters: any = {}
+    const projectId = query?.projectId || query?.project
+    if (projectId) filters.projectId = projectId
+    if (query?.status) filters.status = query.status
+    return filters
   }
 }

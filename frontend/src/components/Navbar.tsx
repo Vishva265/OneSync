@@ -84,7 +84,7 @@ export function Navbar() {
           </button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {visibleItems.slice(0, 4).map((item) => {
+          {visibleItems.map((item) => {
             const active = isActive(item.path)
             return (
               <button

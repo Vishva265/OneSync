@@ -12,14 +12,22 @@ interface AuthStore {
   signUp: (email: string, password: string, fullName: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   logout: () => void
-  checkAuth: () => void
+  checkAuth: () => Promise<void>
   clearError: () => void
 }
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:3000"
 
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem("me") || "null") as User | null
+  } catch {
+    return null
+  }
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
+  user: getStoredUser(),
   token: localStorage.getItem("token"),
   isLoading: false,
   error: null,
@@ -34,6 +42,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       })
       const { accessToken, user } = response.data
       localStorage.setItem("token", accessToken)
+      localStorage.setItem("me", JSON.stringify(user))
+      localStorage.setItem("userRole", String(user.role || "").toUpperCase())
       set({ user, token: accessToken, isLoading: false })
     } catch (error: any) {
       const message = error.response?.data?.message || "Signup failed"
@@ -51,6 +61,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       })
       const { accessToken, user } = response.data
       localStorage.setItem("token", accessToken)
+      localStorage.setItem("me", JSON.stringify(user))
+      localStorage.setItem("userRole", String(user.role || "").toUpperCase())
       set({ user, token: accessToken, isLoading: false })
     } catch (error: any) {
       const message = error.response?.data?.message || "Login failed"
@@ -61,13 +73,32 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   logout: () => {
     localStorage.removeItem("token")
+    localStorage.removeItem("me")
+    localStorage.removeItem("userRole")
     set({ user: null, token: null })
   },
 
-  checkAuth: () => {
+  checkAuth: async () => {
     const token = localStorage.getItem("token")
-    if (token) {
-      set({ token })
+    if (!token) {
+      set({ user: null, token: null, isLoading: false })
+      return
+    }
+
+    set({ token, isLoading: true })
+    try {
+      const response = await axios.get<User>(`${API_URL}/api/v1/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const user = response.data
+      localStorage.setItem("me", JSON.stringify(user))
+      localStorage.setItem("userRole", String(user.role || "").toUpperCase())
+      set({ user, token, isLoading: false })
+    } catch {
+      localStorage.removeItem("token")
+      localStorage.removeItem("me")
+      localStorage.removeItem("userRole")
+      set({ user: null, token: null, isLoading: false })
     }
   },
 
