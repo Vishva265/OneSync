@@ -6,6 +6,10 @@ export const projectsApi = {
   getById: (id: string) => client.get<Project>(`/api/v1/projects/${id}`),
   create: (data: Partial<Project>) => client.post<Project>("/api/v1/projects", data),
   update: (id: string, data: Partial<Project>) => client.put<Project>(`/api/v1/projects/${id}`, data),
+  addTeamMember: (id: string, data: { userId: string; role?: string }) =>
+    client.post(`/api/v1/projects/${id}/team-members`, data),
+  removeTeamMember: (id: string, userId: string) =>
+    client.delete(`/api/v1/projects/${id}/team-members/${userId}`),
   getFinancials: (id: string) => client.get<ProjectFinancials>(`/api/v1/projects/${id}/financials`),
   getOverview: (id: string) => client.get<ProjectOverview>(`/api/v1/projects/${id}/overview`),
 }

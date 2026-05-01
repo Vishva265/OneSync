@@ -1,5 +1,5 @@
 // src/modules/projects/projects.service.ts
-import { Injectable, BadRequestException } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
 import { PrismaService } from "@/prisma/prisma.service"
 
 type CreateProjectDto = {
@@ -17,6 +17,13 @@ type CreateProjectDto = {
 }
 
 type UpdateProjectDto = CreateProjectDto
+
+type AuthUser = {
+  id?: string
+  sub?: string
+  userId?: string
+  role?: string
+}
 
 const ALLOWED_STATUSES = new Set([
   "PLANNING",
@@ -70,6 +77,30 @@ function toDateOrNull(v?: string | Date) {
 @Injectable()
 export class ProjectsService {
   constructor(private prisma: PrismaService) {}
+
+  private userId(user?: AuthUser) {
+    return user?.userId ?? user?.id ?? user?.sub
+  }
+
+  private role(user?: AuthUser) {
+    return String(user?.role || "").toUpperCase()
+  }
+
+  private async assertCanManageProject(projectId: string, user?: AuthUser) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, projectManagerId: true },
+    })
+    if (!project) throw new NotFoundException("Project not found")
+
+    const role = this.role(user)
+    const userId = this.userId(user)
+    if (role !== "ADMIN" && !(role === "PROJECT_MANAGER" && userId === project.projectManagerId)) {
+      throw new ForbiddenException("Only the project manager or an admin can manage project team members")
+    }
+
+    return project
+  }
 
   // ---------- Analytics helpers ----------
   async getProjectMetrics(): Promise<{
@@ -275,6 +306,50 @@ export class ProjectsService {
       where: { id },
       data: patch,
     })
+  }
+
+  async addTeamMember(projectId: string, body: { userId?: string; role?: string }, user?: AuthUser) {
+    const project = await this.assertCanManageProject(projectId, user)
+    const userId = String(body.userId || "").trim()
+    if (!userId) throw new BadRequestException("userId is required")
+    if (userId === project.projectManagerId) {
+      throw new BadRequestException("Project manager is already assigned to this project")
+    }
+
+    const memberUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    })
+    if (!memberUser) throw new NotFoundException("User not found")
+
+    return this.prisma.projectTeamMember.upsert({
+      where: { projectId_userId: { projectId, userId } },
+      update: { role: String(body.role || "TEAM_MEMBER").trim() || "TEAM_MEMBER" },
+      create: {
+        projectId,
+        userId,
+        role: String(body.role || "TEAM_MEMBER").trim() || "TEAM_MEMBER",
+      },
+      include: {
+        user: { select: { id: true, fullName: true, email: true, role: true } },
+      },
+    })
+  }
+
+  async removeTeamMember(projectId: string, userId: string, user?: AuthUser) {
+    await this.assertCanManageProject(projectId, user)
+
+    const membership = await this.prisma.projectTeamMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+      select: { id: true },
+    })
+    if (!membership) throw new NotFoundException("Team member not found on this project")
+
+    await this.prisma.projectTeamMember.delete({
+      where: { projectId_userId: { projectId, userId } },
+    })
+
+    return { success: true }
   }
 
   // ---------- Per-project financials ----------

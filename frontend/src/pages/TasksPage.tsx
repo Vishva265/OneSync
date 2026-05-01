@@ -96,9 +96,28 @@ export function TasksPage() {
     queryFn: async () => (await usersApi.getAll()).data,
   })
 
-  const role = String(me?.role || localStorage.getItem("userRole") || "").toUpperCase()
-  const canManageTasks = role === "ADMIN" || role === "PROJECT_MANAGER"
-  const assignableUsers = (users as User[]) || []
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("me") || "null") as Partial<User> | null
+    } catch {
+      return null
+    }
+  }, [])
+  const role = String(me?.role || storedUser?.role || localStorage.getItem("userRole") || "").toUpperCase()
+  const currentUserId = me?.id || storedUser?.id
+  const isProjectManagerForProject =
+    role === "PROJECT_MANAGER" && (!activeProject?.projectManagerId || activeProject.projectManagerId === currentUserId)
+  const canManageTasks = role === "ADMIN" || isProjectManagerForProject
+  const projectUsers = [
+    activeProject?.projectManager,
+    ...(((activeProject?.teamMembers as any[]) || []).map((member) => member.user || member)),
+  ]
+    .filter((user: Partial<User> | null | undefined): user is User => !!user?.id)
+    .reduce<User[]>((unique, user) => {
+      if (!unique.some((existing) => existing.id === user.id)) unique.push(user)
+      return unique
+    }, [])
+  const assignableUsers = projectUsers.length ? projectUsers : ((users as User[]) || [])
 
   const grouped = useMemo(() => {
     const map: Record<Task["state"], Task[]> = { NEW: [], IN_PROGRESS: [], BLOCKED: [], DONE: [] }

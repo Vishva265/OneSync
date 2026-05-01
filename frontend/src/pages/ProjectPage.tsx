@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, type ReactNode } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { useParams, Link } from "react-router-dom"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -15,10 +15,13 @@ import {
   Gauge,
   Receipt,
   TrendingUp,
+  UserPlus,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react"
 import { projectsApi } from "@/api/projects"
+import { usersApi } from "@/api/users"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TaskBoard } from "@/components/TaskBoard"
@@ -187,6 +190,9 @@ function PanelShell({ title, eyebrow, children }: { title: string; eyebrow: stri
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const queryClient = useQueryClient()
+  const [selectedTeamUserId, setSelectedTeamUserId] = useState("")
+  const [teamRole, setTeamRole] = useState("TEAM_MEMBER")
+  const [teamError, setTeamError] = useState<string | null>(null)
 
   const { data: project, isLoading, error } = useQuery({
     queryKey: ["project", projectId],
@@ -198,6 +204,46 @@ export function ProjectPage() {
     queryKey: ["project-financials", projectId],
     queryFn: async () => (await projectsApi.getFinancials(projectId!)).data,
     enabled: Boolean(projectId),
+  })
+
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => (await usersApi.getMe()).data as User,
+  })
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => (await usersApi.getAll()).data,
+  })
+
+  const addTeamMemberMutation = useMutation({
+    mutationFn: () =>
+      projectsApi.addTeamMember(projectId!, {
+        userId: selectedTeamUserId,
+        role: teamRole || "TEAM_MEMBER",
+      }),
+    onSuccess: () => {
+      setSelectedTeamUserId("")
+      setTeamRole("TEAM_MEMBER")
+      setTeamError(null)
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["projects"] })
+    },
+    onError: (error: any) => {
+      setTeamError(error.response?.data?.message || error.message || "Failed to add team member")
+    },
+  })
+
+  const removeTeamMemberMutation = useMutation({
+    mutationFn: (userId: string) => projectsApi.removeTeamMember(projectId!, userId),
+    onSuccess: () => {
+      setTeamError(null)
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["projects"] })
+    },
+    onError: (error: any) => {
+      setTeamError(error.response?.data?.message || error.message || "Failed to remove team member")
+    },
   })
 
   const progress = useMemo(() => {
@@ -245,6 +291,18 @@ export function ProjectPage() {
 
   const status = statusStyles[project.status] || statusStyles.PLANNING
   const teamMembers = normalizeTeamMembers(project.teamMembers)
+  const currentUserRole = String(me?.role || localStorage.getItem("userRole") || "").toUpperCase()
+  const currentUserId = me?.id
+  const canManageTeam =
+    currentUserRole === "ADMIN" ||
+    (currentUserRole === "PROJECT_MANAGER" &&
+      (project.projectManagerId === currentUserId || project.projectManager?.id === currentUserId))
+  const assignedUserIds = new Set([
+    project.projectManagerId,
+    project.projectManager?.id,
+    ...teamMembers.map((member) => member.id),
+  ].filter(Boolean))
+  const availableTeamUsers = (users as User[]).filter((user) => !assignedUserIds.has(user.id))
   const currency = financials?.currency || project.currency || "USD"
   const recognizedRevenue = asNumber(financials?.revenue)
   const salesOrderTotal = asNumber(financials?.salesOrderTotal)
@@ -459,9 +517,59 @@ export function ProjectPage() {
                     </span>
                   </div>
 
+                  {canManageTeam && (
+                    <div className="mt-5 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px_auto]">
+                        <select
+                          className="h-10 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm text-[#0f172a] outline-none focus:border-[#1a3c6e]"
+                          value={selectedTeamUserId}
+                          onChange={(event) => {
+                            setSelectedTeamUserId(event.target.value)
+                            setTeamError(null)
+                          }}
+                        >
+                          <option value="">
+                            {availableTeamUsers.length ? "Select team member" : "No available users"}
+                          </option>
+                          {availableTeamUsers.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.fullName || user.email} {user.role ? `(${user.role})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className="h-10 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm text-[#0f172a] outline-none focus:border-[#1a3c6e]"
+                          value={teamRole}
+                          onChange={(event) => setTeamRole(event.target.value)}
+                          placeholder="Role"
+                        />
+                        <button
+                          type="button"
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1a3c6e] px-4 text-sm font-medium text-white transition hover:bg-[#15325d] disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={!selectedTeamUserId || addTeamMemberMutation.isPending}
+                          onClick={() => {
+                            if (!selectedTeamUserId) {
+                              setTeamError("Select a user before adding a team member.")
+                              return
+                            }
+                            addTeamMemberMutation.mutate()
+                          }}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          {addTeamMemberMutation.isPending ? "Adding..." : "Add"}
+                        </button>
+                      </div>
+                      {teamError && (
+                        <div className="mt-3 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">
+                          {teamError}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {teamMembers.length ? (
-                      teamMembers.slice(0, 6).map((member) => (
+                      teamMembers.map((member) => (
                         <div key={member.id} className="flex items-center gap-3 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-xs font-medium text-[#1a3c6e]">
                             {initials(member.fullName)}
@@ -470,6 +578,17 @@ export function ProjectPage() {
                             <div className="truncate text-sm font-medium text-[#0f172a]">{member.fullName}</div>
                             <div className="truncate text-xs text-[#64748b]">{member.email}</div>
                           </div>
+                          {canManageTeam && (
+                            <button
+                              type="button"
+                              className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#64748b] transition hover:bg-[#fee2e2] hover:text-[#b91c1c] disabled:cursor-wait disabled:opacity-50"
+                              title="Remove team member"
+                              disabled={removeTeamMemberMutation.isPending}
+                              onClick={() => removeTeamMemberMutation.mutate(member.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       ))
                     ) : (
@@ -550,7 +669,11 @@ export function ProjectPage() {
 
           <TabsContent value="tasks" className="p-4 sm:p-5">
             <PanelShell eyebrow="Execution" title="Task board">
-              <TaskBoard projectId={projectId!} teamMembers={project.teamMembers} />
+              <TaskBoard
+                projectId={projectId!}
+                projectManager={project.projectManager}
+                teamMembers={project.teamMembers}
+              />
             </PanelShell>
           </TabsContent>
 

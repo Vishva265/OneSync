@@ -1,6 +1,21 @@
 import client from "./client"
 import type { Task } from "../types"
 
+function cleanTaskPayload(data: Partial<Task>) {
+  return {
+    ...data,
+    title: data.title?.trim(),
+    description: data.description?.trim() || undefined,
+    assigneeId: data.assigneeId || undefined,
+    estimateHours:
+      data.estimateHours === undefined ||
+      data.estimateHours === null ||
+      (data.estimateHours as any) === ""
+        ? undefined
+        : Number(data.estimateHours),
+  }
+}
+
 export const tasksApi = {
   /** 🔍 Get all tasks for a specific project */
   getByProject: (projectId: string) =>
@@ -13,13 +28,13 @@ export const tasksApi = {
   /** ➕ Create a new task under a project */
   create: (projectId: string, data: Partial<Task>) =>
     client.post<Task>(`/api/v1/projects/${projectId}/tasks`, {
-      ...data,
+      ...cleanTaskPayload(data),
       state: data.state ?? "NEW", // ✅ ensure default
     }),
 
   /** ✏️ Update an existing task */
   update: (id: string, data: Partial<Task>) =>
-    client.put<Task>(`/api/v1/tasks/${id}`, data),
+    client.put<Task>(`/api/v1/tasks/${id}`, cleanTaskPayload(data)),
 
   /** 🔄 Move a task to a new state */
   move: (id: string, state: Task["state"]) =>

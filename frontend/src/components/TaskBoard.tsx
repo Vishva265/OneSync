@@ -8,9 +8,11 @@ import { Button } from "./ui/button"
 
 export function TaskBoard({
   projectId,
+  projectManager,
   teamMembers,
 }: {
   projectId: string
+  projectManager?: User | null
   teamMembers?: Array<User | { user: User }>
 }) {
   const queryClient = useQueryClient()
@@ -28,7 +30,9 @@ export function TaskBoard({
     queryFn: async () => (await usersApi.getMe()).data,
   })
   const role = (me?.role ?? "").toUpperCase()
-  const canChangeAssignee = role === "ADMIN" || role === "PROJECT_MANAGER"
+  const isProjectManagerForProject =
+    role === "PROJECT_MANAGER" && (!projectManager?.id || projectManager.id === me?.id)
+  const canChangeAssignee = role === "ADMIN" || isProjectManagerForProject
   const canCreateTask = canChangeAssignee
 
   // All users (assignment list)
@@ -36,9 +40,12 @@ export function TaskBoard({
     queryKey: ["users"],
     queryFn: async () => (await usersApi.getAll()).data,
   })
-  const projectUsers = (teamMembers || [])
-    .map((member: any) => member.user || member)
-    .filter((user: Partial<User>) => !!user.id) as User[]
+  const projectUsers = [projectManager, ...(teamMembers || []).map((member: any) => member.user || member)]
+    .filter((user: Partial<User> | null | undefined): user is User => !!user?.id)
+    .reduce<User[]>((unique, user) => {
+      if (!unique.some((existing) => existing.id === user.id)) unique.push(user)
+      return unique
+    }, [])
   const assignableUsers: User[] = projectUsers.length ? projectUsers : ((users as User[]) ?? [])
 
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
@@ -103,7 +110,12 @@ export function TaskBoard({
           ? undefined
           : Number(data.estimateHours)
 
-      return tasksApi.create(projectId, { ...data, estimateHours: estimate, state: "NEW" })
+      return tasksApi.create(projectId, {
+        ...data,
+        estimateHours: estimate,
+        assigneeId: data.assigneeId || undefined,
+        state: "NEW",
+      })
     },
     onSuccess: (res) => {
       const created = res.data

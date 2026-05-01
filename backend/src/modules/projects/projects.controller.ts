@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards } from "@nestjs/common"
+import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common"
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger"
 import { JwtAuthGuard } from "@/common/guards/jwt.guard"
 import  { ProjectsService } from "./projects.service"
@@ -42,6 +42,16 @@ export class ProjectsController {
   @Put(":id")
   async update(@Param('id') id: string, @Body() body: any) {
     return this.projectsService.update(id, body)
+  }
+
+  @Post(":id/team-members")
+  async addTeamMember(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    return this.projectsService.addTeamMember(id, body, req.user)
+  }
+
+  @Delete(":id/team-members/:userId")
+  async removeTeamMember(@Param("id") id: string, @Param("userId") userId: string, @Req() req: any) {
+    return this.projectsService.removeTeamMember(id, userId, req.user)
   }
 
   // Milestone endpoints
