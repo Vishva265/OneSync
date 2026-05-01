@@ -2,9 +2,10 @@ import client from "./client"
 import type { Expense } from "@/types"
 
 export const expensesApi = {
-  getAll: (filters?: { projectId?: string; status?: string }) => {
+  getAll: (filters?: { projectId?: string; status?: string; user?: string }) => {
     const params = new URLSearchParams()
     if (filters?.projectId) params.append("project", filters.projectId)
+    if (filters?.user) params.append("user", filters.user)
     if (filters?.status) params.append("status", filters.status)
     return client.get<Expense[]>(`/api/v1/expenses?${params}`)
   },

@@ -77,6 +77,11 @@ export class FinanceController {
     return this.financeService.getInvoices(projectId || project)
   }
 
+  @Get("invoices/:id")
+  async getInvoice(@Param("id") id: string) {
+    return this.financeService.getInvoiceById(id)
+  }
+
   @Post('invoices/from-timesheets')
   @UseGuards(RbacGuard)
   @Roles('ADMIN', 'FINANCE', 'PROJECT_MANAGER')

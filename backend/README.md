@@ -72,6 +72,7 @@ The API will be running on `http://localhost:3000` with hot-reload enabled.
 - `npm run db:migrate:dev` - Create new migration (interactive)
 - `npm run db:migrate:deploy` - Apply pending migrations
 - `npm run db:seed` - Seed database with sample data
+- `npm run auth:repair-dev-users` - Restore non-destructive local test login users
 - `npm run db:studio` - Open Prisma Studio (GUI)
 
 ## Project Structure
@@ -109,8 +110,8 @@ Swagger/OpenAPI docs available at `/api/docs` after starting the server.
 ### Core Endpoints (v1)
 
 **Auth**
-- `POST /api/v1/auth/signup` - Sign up new user
-- `POST /api/v1/auth/login` - Sign in (returns JWT)
+- `POST /api/v1/auth/sign-up` - Sign up new user
+- `POST /api/v1/auth/sign-in` - Sign in (returns JWT)
 - `POST /api/v1/auth/logout` - Sign out
 
 **Projects**

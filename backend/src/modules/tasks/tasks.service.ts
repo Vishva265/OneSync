@@ -1,11 +1,56 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common"
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
 import { $Enums, Prisma } from "@prisma/client"
 import { PrismaService } from "@/prisma/prisma.service"
 import { CreateTaskDto } from "./dto/create-task.dto"
 
+type AuthUser = {
+  id?: string
+  sub?: string
+  userId?: string
+  role?: string
+}
+
 @Injectable()
 export class TasksService {
   constructor(private prisma: PrismaService) {}
+
+  private userId(user?: AuthUser) {
+    return user?.userId ?? user?.id ?? user?.sub
+  }
+
+  private role(user?: AuthUser) {
+    return String(user?.role || "").toUpperCase()
+  }
+
+  private canManageProject(projectManagerId: string, user?: AuthUser) {
+    const role = this.role(user)
+    const userId = this.userId(user)
+    return role === "ADMIN" || (role === "PROJECT_MANAGER" && userId === projectManagerId)
+  }
+
+  private assertCanManageProject(projectManagerId: string, user?: AuthUser) {
+    if (!this.canManageProject(projectManagerId, user)) {
+      throw new ForbiddenException("Only the project manager or an admin can manage tasks for this project")
+    }
+  }
+
+  private async assertAssignableUser(projectId: string, assigneeId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        projectManagerId: true,
+        teamMembers: {
+          where: { userId: assigneeId },
+          select: { id: true },
+        },
+      },
+    })
+    if (!project) throw new NotFoundException(`Project with ID ${projectId} not found`)
+
+    if (project.projectManagerId !== assigneeId && project.teamMembers.length === 0) {
+      throw new BadRequestException("Assignee must be the project manager or a project team member")
+    }
+  }
 
   async findByProject(projectId: string) {
     const project = await this.prisma.project.findUnique({
@@ -43,24 +88,16 @@ export class TasksService {
     return task
   }
 
-  /**
-   * ✅ Create task — allows any valid user (not just project members)
-   */
-  async create(projectId: string, data: CreateTaskDto) {
-    console.log("📥 Creating task with data:", data)
-
+  async create(projectId: string, data: CreateTaskDto, user?: AuthUser) {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
     })
     if (!project) throw new NotFoundException(`Project with ID ${projectId} not found`)
 
-    // ✅ Optional: Validate user exists if provided
+    this.assertCanManageProject(project.projectManagerId, user)
+
     if (data.assigneeId && typeof data.assigneeId === "string") {
-      const userExists = await this.prisma.user.findUnique({
-        where: { id: data.assigneeId },
-      })
-      if (!userExists)
-        throw new BadRequestException(`User with ID ${data.assigneeId} does not exist`)
+      await this.assertAssignableUser(projectId, data.assigneeId)
     }
 
     const state = data.state ?? $Enums.TaskState.NEW
@@ -74,9 +111,7 @@ export class TasksService {
         estimateHours: data.estimateHours ?? null,
         dueDate: data.dueDate ?? null,
         project: { connect: { id: projectId } },
-        ...(data.assigneeId
-          ? { assignee: { connect: { id: data.assigneeId } } }
-          : {}),
+        ...(data.assigneeId ? { assignee: { connect: { id: data.assigneeId } } } : {}),
       },
       include: {
         assignee: true,
@@ -85,26 +120,25 @@ export class TasksService {
     })
   }
 
-  /**
-   * ✅ Update task — allows assigning any valid user
-   */
   async update(
     id: string,
     data: Prisma.TaskUpdateInput & { assigneeId?: string | null },
+    user?: AuthUser,
   ) {
     const existing = await this.prisma.task.findUnique({
       where: { id },
-      select: { id: true, projectId: true },
+      select: {
+        id: true,
+        projectId: true,
+        project: { select: { projectManagerId: true } },
+      },
     })
     if (!existing) throw new NotFoundException(`Task with ID ${id} not found`)
 
-    // ✅ Check only if user exists (no need to be a team member)
+    this.assertCanManageProject(existing.project.projectManagerId, user)
+
     if (data.assigneeId && typeof data.assigneeId === "string") {
-      const userExists = await this.prisma.user.findUnique({
-        where: { id: data.assigneeId },
-      })
-      if (!userExists)
-        throw new BadRequestException(`User with ID ${data.assigneeId} does not exist`)
+      await this.assertAssignableUser(existing.projectId, data.assigneeId)
     }
 
     return this.prisma.task.update({
@@ -119,14 +153,30 @@ export class TasksService {
         ...(data.assigneeId === null
           ? { assignee: { disconnect: true } }
           : data.assigneeId
-          ? { assignee: { connect: { id: data.assigneeId } } }
-          : {}),
+            ? { assignee: { connect: { id: data.assigneeId } } }
+            : {}),
       },
       include: { assignee: true, project: true },
     })
   }
 
-  async moveTask(id: string, newState: $Enums.TaskState) {
+  async moveTask(id: string, newState: $Enums.TaskState, user?: AuthUser) {
+    const existing = await this.prisma.task.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        assigneeId: true,
+        project: { select: { projectManagerId: true } },
+      },
+    })
+    if (!existing) throw new NotFoundException(`Task with ID ${id} not found`)
+
+    const userId = this.userId(user)
+    const isAssignee = !!userId && existing.assigneeId === userId
+    if (!isAssignee && !this.canManageProject(existing.project.projectManagerId, user)) {
+      throw new ForbiddenException("Only the assignee, project manager, or admin can move this task")
+    }
+
     return this.prisma.task.update({
       where: { id },
       data: { state: newState },

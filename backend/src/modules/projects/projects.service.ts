@@ -19,13 +19,47 @@ type CreateProjectDto = {
 type UpdateProjectDto = CreateProjectDto
 
 const ALLOWED_STATUSES = new Set([
-  // Put your actual enum members here:
   "PLANNING",
   "ACTIVE",
   "ON_HOLD",
   "COMPLETED",
-  "CANCELLED",
+  "ARCHIVED",
 ])
+
+const REVENUE_STATUSES = new Set(["POSTED", "PAID"])
+const COST_DOCUMENT_STATUSES = new Set(["POSTED", "PAID"])
+
+function decimalToNumber(value: any) {
+  return value?.toNumber?.() ?? Number(value) ?? 0
+}
+
+function positiveNumber(value: any) {
+  const numberValue = decimalToNumber(value)
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 0
+}
+
+function timesheetAmount(timesheet: any) {
+  const savedAmount = positiveNumber(timesheet.amount)
+  if (savedAmount) return savedAmount
+
+  const durationHours = decimalToNumber(timesheet.durationHours)
+  const hourlyRate =
+    positiveNumber(timesheet.hourlyRate) ||
+    positiveNumber(timesheet.project?.defaultHourlyRate) ||
+    positiveNumber(timesheet.user?.defaultHourlyRate) ||
+    50
+
+  return durationHours * hourlyRate
+}
+
+function normalizeProjectStatus(status?: string) {
+  if (!status) return "PLANNING"
+  const normalized = String(status).toUpperCase()
+  if (!ALLOWED_STATUSES.has(normalized)) {
+    throw new BadRequestException(`Invalid project status: ${status}`)
+  }
+  return normalized
+}
 
 function toDateOrNull(v?: string | Date) {
   if (!v) return null
@@ -47,30 +81,48 @@ export class ProjectsService {
     const totalProjects = await this.prisma.project.count()
 
     const invoices = await this.prisma.customerInvoice.findMany({
+      where: { status: { in: Array.from(REVENUE_STATUSES) as any[] } },
       select: { totalAmount: true },
     })
     const totalRevenue = invoices.reduce(
-      (sum, inv) => sum + (inv.totalAmount?.toNumber?.() ?? 0),
+      (sum, inv) => sum + decimalToNumber(inv.totalAmount),
       0
     )
 
     const timesheets = await this.prisma.timesheet.findMany({
-      select: { amount: true },
+      where: { status: "APPROVED" },
+      select: {
+        durationHours: true,
+        hourlyRate: true,
+        amount: true,
+        user: { select: { defaultHourlyRate: true } },
+        project: { select: { defaultHourlyRate: true } },
+      },
     })
     const timesheetCost = timesheets.reduce(
-      (sum, ts) => sum + (ts.amount?.toNumber?.() ?? 0),
+      (sum, ts) => sum + timesheetAmount(ts),
       0
     )
 
     const expenses = await this.prisma.expense.findMany({
+      where: { status: "APPROVED" },
       select: { amount: true },
     })
     const expenseCost = expenses.reduce(
-      (sum, e) => sum + (e.amount?.toNumber?.() ?? 0),
+      (sum, e) => sum + decimalToNumber(e.amount),
       0
     )
 
-    const totalCost = timesheetCost + expenseCost
+    const vendorBills = await this.prisma.vendorBill.findMany({
+      where: { status: { in: Array.from(COST_DOCUMENT_STATUSES) as any[] } },
+      select: { totalAmount: true },
+    })
+    const vendorBillCost = vendorBills.reduce(
+      (sum, bill) => sum + decimalToNumber(bill.totalAmount),
+      0
+    )
+
+    const totalCost = timesheetCost + expenseCost + vendorBillCost
 
     return {
       totalProjects,
@@ -107,7 +159,7 @@ export class ProjectsService {
         teamMembers: {
           select: {
             id: true,
-            user: { select: { fullName: true, email: true } },
+            user: { select: { id: true, fullName: true, email: true } },
           },
         },
       },
@@ -122,7 +174,7 @@ export class ProjectsService {
         teamMembers: {
           select: {
             id: true,
-            user: { select: { fullName: true, email: true } },
+            user: { select: { id: true, fullName: true, email: true } },
           },
         },
         tasks: true,
@@ -146,11 +198,7 @@ export class ProjectsService {
       throw new BadRequestException("Project name is required")
     }
 
-    // status mapping (fallback to PLANNING if invalid/missing)
-    const normalizedStatus = String(status || "").toUpperCase()
-    const safeStatus = ALLOWED_STATUSES.has(normalizedStatus)
-      ? normalizedStatus
-      : "PLANNING"
+    const safeStatus = normalizeProjectStatus(status)
 
     // date mapping
     const start = toDateOrNull(startDate) ?? new Date()
@@ -197,12 +245,7 @@ export class ProjectsService {
 
     // Optional status mapping on update
     if (typeof status !== "undefined") {
-      const normalized = String(status).toUpperCase()
-      if (ALLOWED_STATUSES.has(normalized)) {
-        patch.status = normalized
-      } else {
-        // ignore invalid status instead of throwing (or throw if you prefer)
-      }
+      patch.status = normalizeProjectStatus(status)
     }
 
     // Optional date mapping
@@ -236,75 +279,106 @@ export class ProjectsService {
 
   // ---------- Per-project financials ----------
   async getFinancials(projectId: string) {
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        customerInvoices: true,
-        timesheets: true,
-        expenses: true,
-        vendorBills: true,
-        salesOrders: true,
-        purchaseOrders: true,
-        milestones: true,
-      },
-    })
+    const [
+      project,
+      invoiceRevenue,
+      invoiceCount,
+      approvedTimesheets,
+      timesheetCount,
+      expenseCostTotals,
+      expenseCount,
+      vendorBillCostTotals,
+      vendorBillCount,
+      salesOrderTotals,
+      salesOrderCount,
+      purchaseOrderTotals,
+      purchaseOrderCount,
+      milestoneTotals,
+      milestoneDoneCount,
+      milestoneInvoicedTotals,
+    ] = await this.prisma.$transaction([
+      this.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true, name: true, code: true, currency: true, budgetAmount: true },
+      }),
+      this.prisma.customerInvoice.aggregate({
+        where: { projectId, status: { in: Array.from(REVENUE_STATUSES) as any[] } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.customerInvoice.count({ where: { projectId } }),
+      this.prisma.timesheet.findMany({
+        where: { projectId, status: "APPROVED" },
+        select: {
+          durationHours: true,
+          hourlyRate: true,
+          amount: true,
+          user: { select: { defaultHourlyRate: true } },
+          project: { select: { defaultHourlyRate: true } },
+        },
+      }),
+      this.prisma.timesheet.count({ where: { projectId } }),
+      this.prisma.expense.aggregate({
+        where: { projectId, status: "APPROVED" },
+        _sum: { amount: true },
+      }),
+      this.prisma.expense.count({ where: { projectId } }),
+      this.prisma.vendorBill.aggregate({
+        where: { projectId, status: { in: Array.from(COST_DOCUMENT_STATUSES) as any[] } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.vendorBill.count({ where: { projectId } }),
+      this.prisma.salesOrder.aggregate({
+        where: { projectId, status: { notIn: ["CANCELLED", "ARCHIVED"] as any[] } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.salesOrder.count({ where: { projectId } }),
+      this.prisma.purchaseOrder.aggregate({
+        where: { projectId, status: { notIn: ["CANCELLED", "ARCHIVED"] as any[] } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.purchaseOrder.count({ where: { projectId } }),
+      this.prisma.milestone.aggregate({
+        where: { projectId },
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      this.prisma.milestone.count({ where: { projectId, status: "DONE" } }),
+      this.prisma.milestone.aggregate({
+        where: { projectId, invoiced: true },
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+    ])
 
     if (!project) return null
 
-    // Calculate revenue from invoices
-    const revenue = project.customerInvoices.reduce(
-      (sum, inv) => sum + (inv.totalAmount?.toNumber?.() ?? 0),
-      0
-    )
-
-    // Calculate costs from timesheets
-    const timesheetCost = project.timesheets.reduce(
-      (sum, ts) => sum + (ts.amount?.toNumber?.() ?? 0),
-      0
-    )
-
-    // Calculate costs from expenses (approved only)
-    const expenseCost = project.expenses
-      .filter((exp) => exp.status === 'APPROVED')
-      .reduce((sum, exp) => sum + (exp.amount?.toNumber?.() ?? 0), 0)
-
-    // Calculate costs from vendor bills
-    const vendorBillCost = project.vendorBills.reduce(
-      (sum, bill) => sum + (bill.totalAmount?.toNumber?.() ?? 0),
-      0
-    )
-
+    const revenue = decimalToNumber(invoiceRevenue._sum.totalAmount)
+    const timesheetCost = approvedTimesheets.reduce((sum, timesheet) => sum + timesheetAmount(timesheet), 0)
+    const expenseCost = decimalToNumber(expenseCostTotals._sum.amount)
+    const vendorBillCost = decimalToNumber(vendorBillCostTotals._sum.totalAmount)
     const totalCost = timesheetCost + expenseCost + vendorBillCost
 
-    // Calculate budget information
-    const budgetAmount = project.budgetAmount?.toNumber?.() ?? 0
+    const budgetAmount = decimalToNumber(project.budgetAmount)
     const budgetUsed = (totalCost / budgetAmount) * 100
 
-    // Sales order total
-    const salesOrderTotal = project.salesOrders.reduce(
-      (sum, so) => sum + (so.totalAmount?.toNumber?.() ?? 0),
-      0
-    )
+    const salesOrderTotal = decimalToNumber(salesOrderTotals._sum.totalAmount)
+    const purchaseOrderTotal = decimalToNumber(purchaseOrderTotals._sum.totalAmount)
 
-    // Purchase order total
-    const purchaseOrderTotal = project.purchaseOrders.reduce(
-      (sum, po) => sum + (po.totalAmount?.toNumber?.() ?? 0),
-      0
-    )
-
-    // Milestones summary
     const milestoneSummary = {
-      total: project.milestones.length,
-      done: project.milestones.filter((m) => m.status === 'DONE').length,
-      invoiced: project.milestones.filter((m) => m.invoiced).length,
-      totalAmount: project.milestones.reduce(
-        (sum, m) => sum + (m.amount?.toNumber?.() ?? 0),
-        0
-      ),
-      invoicedAmount: project.milestones
-        .filter((m) => m.invoiced)
-        .reduce((sum, m) => sum + (m.amount?.toNumber?.() ?? 0), 0),
+      total: milestoneTotals._count._all,
+      done: milestoneDoneCount,
+      invoiced: milestoneInvoicedTotals._count._all,
+      totalAmount: decimalToNumber(milestoneTotals._sum.amount),
+      invoicedAmount: decimalToNumber(milestoneInvoicedTotals._sum.amount),
     }
+
+    const expectedRevenue = Math.max(
+      revenue,
+      salesOrderTotal,
+      milestoneSummary.totalAmount,
+    )
+    const expectedProfit = expectedRevenue - totalCost
+    const recognizedProfit = revenue - totalCost
 
     return {
       projectId,
@@ -315,6 +389,7 @@ export class ProjectsService {
       // Revenue
       revenue,
       salesOrderTotal,
+      expectedRevenue,
       
       // Costs breakdown
       cost: totalCost,
@@ -324,8 +399,12 @@ export class ProjectsService {
       purchaseOrderTotal,
       
       // Profitability
-      profit: revenue - totalCost,
-      profitMargin: revenue > 0 ? ((revenue - totalCost) / revenue) * 100 : 0,
+      profit: expectedProfit,
+      profitMargin: expectedRevenue > 0 ? (expectedProfit / expectedRevenue) * 100 : 0,
+      expectedProfit,
+      expectedProfitMargin: expectedRevenue > 0 ? (expectedProfit / expectedRevenue) * 100 : 0,
+      recognizedProfit,
+      recognizedProfitMargin: revenue > 0 ? (recognizedProfit / revenue) * 100 : 0,
       
       // Budget
       budgetAmount,
@@ -337,12 +416,12 @@ export class ProjectsService {
       
       // Counts
       counts: {
-        invoices: project.customerInvoices.length,
-        timesheets: project.timesheets.length,
-        expenses: project.expenses.length,
-        vendorBills: project.vendorBills.length,
-        salesOrders: project.salesOrders.length,
-        purchaseOrders: project.purchaseOrders.length,
+        invoices: invoiceCount,
+        timesheets: timesheetCount,
+        expenses: expenseCount,
+        vendorBills: vendorBillCount,
+        salesOrders: salesOrderCount,
+        purchaseOrders: purchaseOrderCount,
       },
     }
   }

@@ -20,17 +20,20 @@ export const Tabs = ({ children, defaultValue, className }: { children: React.Re
 }
 
 export const TabsList = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={clsx("flex border-b border-gray-200 bg-gray-50", className)}>{children}</div>
+  <div className={clsx("flex flex-wrap gap-2 border-b border-[#e2e8f0] bg-white p-2", className)}>{children}</div>
 )
 
 export const TabsTrigger = ({ value, children }: { value: string; children: React.ReactNode }) => {
   const { activeTab, setActiveTab } = React.useContext(TabsContext)
   return (
     <button
+      type="button"
       onClick={() => setActiveTab(value)}
       className={clsx(
-        "px-4 py-3 font-medium text-sm transition-colors",
-        activeTab === value ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-600 hover:text-gray-900",
+        "inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#1a3c6e]/15",
+        activeTab === value
+          ? "bg-[#1a3c6e] text-white"
+          : "border border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#1a3c6e] hover:text-[#1a3c6e]",
       )}
     >
       {children}

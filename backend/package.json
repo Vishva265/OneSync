@@ -9,6 +9,7 @@
     "build": "nest build",
     "start": "nest start",
     "seed": "ts-node prisma/seed.ts",
+    "auth:repair-dev-users": "ts-node prisma/repair-login-users.ts",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "test": "jest",

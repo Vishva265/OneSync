@@ -2,7 +2,9 @@ import { Test, type TestingModule } from "@nestjs/testing"
 import { FinanceService } from "../finance.service"
 import { PrismaService } from "@/prisma/prisma.service"
 import { BadRequestException } from "@nestjs/common"
-import { jest, fail } from "@jest/globals" // Import jest and fail from @jest/globals
+import { jest } from "@jest/globals"
+
+const resolved = (value: any) => (jest.fn() as any).mockResolvedValue(value)
 
 describe("FinanceService - Invoice Creation", () => {
   let service: FinanceService
@@ -86,20 +88,20 @@ describe("FinanceService - Invoice Creation", () => {
         createdAt: new Date(),
       }
 
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: any) => {
         const txMock = {
           timesheet: {
-            findMany: jest.fn().mockResolvedValue(mockTimesheets),
-            update: jest.fn().mockResolvedValue({}),
+            findMany: resolved(mockTimesheets),
+            update: resolved({}),
           },
           customerInvoice: {
-            create: jest.fn().mockResolvedValue(mockInvoice),
+            create: resolved(mockInvoice),
           },
           invoiceLine: {
-            create: jest.fn().mockResolvedValue({}),
+            create: resolved({}),
           },
           auditLog: {
-            create: jest.fn().mockResolvedValue({}),
+            create: resolved({}),
           },
         }
         return callback(txMock)
@@ -117,10 +119,10 @@ describe("FinanceService - Invoice Creation", () => {
       const projectId = "proj-1"
       const timesheetIds = ["ts-1", "ts-2"]
 
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: any) => {
         const txMock = {
           timesheet: {
-            findMany: jest.fn().mockResolvedValue([
+            findMany: resolved([
               {
                 id: "ts-1",
                 projectId,
@@ -143,10 +145,10 @@ describe("FinanceService - Invoice Creation", () => {
 
       try {
         await service.createInvoiceFromTimesheets(projectId, timesheetIds)
-        fail("Should have thrown BadRequestException")
+        throw new Error("Should have thrown BadRequestException")
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException)
-        expect(error.message).toContain("not approved or already invoiced")
+        expect((error as Error).message).toContain("not approved or already invoiced")
       }
     })
 
@@ -154,10 +156,10 @@ describe("FinanceService - Invoice Creation", () => {
       const projectId = "proj-1"
       const timesheetIds = ["ts-1"]
 
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: any) => {
         const txMock = {
           timesheet: {
-            findMany: jest.fn().mockResolvedValue([
+            findMany: resolved([
               {
                 id: "ts-1",
                 projectId,
@@ -173,7 +175,7 @@ describe("FinanceService - Invoice Creation", () => {
 
       try {
         await service.createInvoiceFromTimesheets(projectId, timesheetIds)
-        fail("Should have thrown BadRequestException")
+        throw new Error("Should have thrown BadRequestException")
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException)
       }
@@ -183,10 +185,10 @@ describe("FinanceService - Invoice Creation", () => {
       const projectId = "proj-1"
       const timesheetIds = ["ts-1", "ts-2", "ts-3"]
 
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: any) => {
         const txMock = {
           timesheet: {
-            findMany: jest.fn().mockResolvedValue([
+            findMany: resolved([
               { id: "ts-1", projectId, status: "APPROVED", invoiced: false, amount: 480 },
               { id: "ts-2", projectId, status: "APPROVED", invoiced: false, amount: 480 },
             ]), // Only 2 found, not 3
@@ -197,10 +199,10 @@ describe("FinanceService - Invoice Creation", () => {
 
       try {
         await service.createInvoiceFromTimesheets(projectId, timesheetIds)
-        fail("Should have thrown BadRequestException")
+        throw new Error("Should have thrown BadRequestException")
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException)
-        expect(error.message).toContain("not found")
+        expect((error as Error).message).toContain("not found")
       }
     })
 
@@ -220,23 +222,29 @@ describe("FinanceService - Invoice Creation", () => {
         task: { title: "Build Login" },
       }
 
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: any) => {
         const txMock = {
           timesheet: {
-            findMany: jest.fn().mockResolvedValue([mockTimesheet]),
-            update: jest.fn().mockResolvedValue({}),
+            findMany: resolved([mockTimesheet]),
+            update: resolved({}),
           },
           customerInvoice: {
-            create: jest.fn().mockResolvedValue({
+            create: resolved({
               id: "inv-1",
               number: "INV-123",
             }),
           },
           invoiceLine: {
-            create: jest.fn(),
+            create: resolved({
+              id: "line-1",
+              description: "Time: Build Login - Frontend development",
+              quantity: 8,
+              unitPrice: 75,
+              amount: 600,
+            }),
           },
           auditLog: {
-            create: jest.fn().mockResolvedValue({}),
+            create: resolved({}),
           },
         }
         return callback(txMock)
@@ -252,26 +260,26 @@ describe("FinanceService - Invoice Creation", () => {
       const projectId = "proj-1"
       const timesheetIds = ["ts-1", "ts-2"]
 
-      mockPrisma.$transaction.mockImplementationOnce(async (callback) => {
+      mockPrisma.$transaction.mockImplementationOnce(async (callback: any) => {
         const txMock = {
           timesheet: {
-            findMany: jest.fn().mockResolvedValue([
+            findMany: resolved([
               { id: "ts-1", projectId, status: "APPROVED", invoiced: false, amount: 480 },
               { id: "ts-2", projectId, status: "APPROVED", invoiced: false, amount: 480 },
             ]),
-            update: jest.fn().mockResolvedValue({}),
+            update: resolved({}),
           },
           customerInvoice: {
-            create: jest.fn().mockResolvedValue({
+            create: resolved({
               id: "inv-1",
               number: "INV-123",
             }),
           },
           invoiceLine: {
-            create: jest.fn().mockResolvedValue({}),
+            create: resolved({}),
           },
           auditLog: {
-            create: jest.fn().mockResolvedValue({}),
+            create: resolved({}),
           },
         }
         return callback(txMock)
@@ -292,8 +300,10 @@ describe("FinanceService - Invoice Creation", () => {
         { totalAmount: 250, status: "DRAFT" },
       ]
 
-      const revenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
-      expect(revenue).toBe(1750)
+      const revenue = invoices
+        .filter((inv) => ["POSTED", "PAID"].includes(inv.status))
+        .reduce((sum, inv) => sum + inv.totalAmount, 0)
+      expect(revenue).toBe(1500)
     })
 
     it("should calculate cost from timesheets and expenses", () => {

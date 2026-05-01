@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "@/common/guards/jwt.guard";
 import { TasksService } from "../tasks/tasks.service";
@@ -6,6 +6,7 @@ import { ProjectsService } from "../projects/projects.service";
 
 @ApiTags("Analytics")
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller("api/v1/analytics")
 export class AnalyticsController {
   constructor(

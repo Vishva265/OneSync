@@ -19,7 +19,7 @@ export const tasksApi = {
 
   /** ✏️ Update an existing task */
   update: (id: string, data: Partial<Task>) =>
-    client.patch<Task>(`/api/v1/tasks/${id}`, data),
+    client.put<Task>(`/api/v1/tasks/${id}`, data),
 
   /** 🔄 Move a task to a new state */
   move: (id: string, state: Task["state"]) =>
@@ -27,5 +27,5 @@ export const tasksApi = {
 
   /** 📊 Get task analytics (group by state) */
   getAnalytics: () =>
-    client.get<{ name: string; value: number }[]>(`/api/v1/tasks/analytics`),
+    client.get<{ name: string; value: number }[]>(`/api/v1/analytics/task-status`),
 }

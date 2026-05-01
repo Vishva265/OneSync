@@ -18,17 +18,17 @@ interface UtilizationData {
 
 export const analyticsApi = {
   async getTaskStatusStats(): Promise<TaskStatusCount[]> {
-    const { data } = await axiosInstance.get('/analytics/task-status');
+    const { data } = await axiosInstance.get('/api/v1/analytics/task-status');
     return data;
   },
 
   async getProjectMetrics(): Promise<ProjectMetrics[]> {
-    const { data } = await axiosInstance.get('/analytics/project-metrics');
+    const { data } = await axiosInstance.get('/api/v1/analytics/project-metrics');
     return data;
   },
 
   async getUtilizationTrend(): Promise<UtilizationData[]> {
-    const { data } = await axiosInstance.get('/analytics/utilization');
+    const { data } = await axiosInstance.get('/api/v1/analytics/utilization');
     return data;
   },
 };

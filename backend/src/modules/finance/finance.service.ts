@@ -5,6 +5,14 @@ import  { PrismaService } from "@/prisma/prisma.service";
 export class FinanceService {
   constructor(private prisma: PrismaService) {}
 
+  private decimalToNumber(value: any) {
+    return value?.toNumber?.() ?? Number(value) ?? 0;
+  }
+
+  private documentNumber(prefix: string) {
+    return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  }
+
   async createInvoiceFromTimesheets(projectId: string, timesheetIds: string[]) {
     return await this.prisma.$transaction(async (tx) => {
       // ✅ Validate all timesheets exist, are approved, and not already invoiced
@@ -37,7 +45,7 @@ export class FinanceService {
         0,
       );
 
-      const invoiceNumber = `INV-${Date.now()}`;
+      const invoiceNumber = this.documentNumber("INV");
 
       // ✅ Create invoice
       const invoice = await tx.customerInvoice.create({
@@ -154,7 +162,7 @@ export class FinanceService {
 
     // Create SO with lines in a transaction
     return this.prisma.$transaction(async (tx) => {
-      const soNumber = `SO-${Date.now()}`;
+      const soNumber = this.documentNumber("SO");
       const so = await tx.salesOrder.create({
         data: {
           number: soNumber,
@@ -221,7 +229,7 @@ export class FinanceService {
     const totalAmount = preparedLines.reduce((s: number, l: any) => s + (Number(l.amount) || 0), 0);
 
     return this.prisma.$transaction(async (tx) => {
-      const poNumber = `PO-${Date.now()}`;
+      const poNumber = this.documentNumber("PO");
       const po = await tx.purchaseOrder.create({ data: { number: poNumber, projectId: data.projectId || null, vendorId: data.vendorId || null, vendorName: vendorName || null, status: 'DRAFT', totalAmount, currency: data.currency || 'USD' } });
 
       for (const pl of preparedLines) {
@@ -247,7 +255,15 @@ export class FinanceService {
       const po = await tx.purchaseOrder.findUnique({ where: { id: poId }, include: { lines: true } });
       if (!po) throw new BadRequestException('Purchase Order not found');
 
-      const billNumber = body.number || `BILL-${Date.now()}`;
+      const existingBill = await tx.vendorBill.findFirst({
+        where: { sourcePo: po.id, status: { not: 'CANCELLED' } },
+        select: { number: true },
+      });
+      if (existingBill) {
+        throw new BadRequestException(`Purchase Order already has vendor bill ${existingBill.number}`);
+      }
+
+      const billNumber = body.number || this.documentNumber("BILL");
       const vendorBill = await tx.vendorBill.create({ data: { number: billNumber, projectId: po.projectId, sourcePo: po.id, vendorId: po.vendorId || null, vendorName: po.vendorName || null, status: 'DRAFT', totalAmount: typeof po.totalAmount === 'object' && 'toNumber' in po.totalAmount ? po.totalAmount.toNumber() : po.totalAmount, currency: po.currency || 'USD', dueDate: body.dueDate ? new Date(body.dueDate) : undefined, notes: body.notes || undefined } });
 
       const createdLines: any[] = [];
@@ -270,7 +286,15 @@ export class FinanceService {
       const so = await tx.salesOrder.findUnique({ where: { id: soId }, include: { lines: true } });
       if (!so) throw new BadRequestException('Sales Order not found');
 
-      const invoiceNumber = `INV-${Date.now()}`;
+      const existingInvoice = await tx.customerInvoice.findFirst({
+        where: { sourceSoId: so.id, status: { not: 'CANCELLED' } },
+        select: { number: true },
+      });
+      if (existingInvoice) {
+        throw new BadRequestException(`Sales Order already has invoice ${existingInvoice.number}`);
+      }
+
+      const invoiceNumber = this.documentNumber("INV");
       const invoice = await tx.customerInvoice.create({
         data: {
           number: invoiceNumber,
@@ -312,9 +336,19 @@ export class FinanceService {
     return this.prisma.$transaction(async (tx) => {
       const { number, projectId, sourceSoId, customerId, customerName, totalAmount, currency, invoiceLines = [] } = payload
 
+      if (sourceSoId) {
+        const existingInvoice = await tx.customerInvoice.findFirst({
+          where: { sourceSoId, status: { not: 'CANCELLED' } },
+          select: { number: true },
+        })
+        if (existingInvoice) {
+          throw new BadRequestException(`Sales Order already has invoice ${existingInvoice.number}`)
+        }
+      }
+
       const invoice = await tx.customerInvoice.create({
         data: {
-          number,
+          number: number || this.documentNumber("INV"),
           projectId: projectId || null,
           sourceSoId: sourceSoId || null,
           status: 'DRAFT',
@@ -345,6 +379,15 @@ export class FinanceService {
       where: projectId ? { projectId } : undefined,
       include: { project: true, invoiceLines: true },
     });
+  }
+
+  async getInvoiceById(id: string) {
+    const invoice = await this.prisma.customerInvoice.findUnique({
+      where: { id },
+      include: { project: true, invoiceLines: true },
+    });
+    if (!invoice) throw new BadRequestException('Invoice not found');
+    return invoice;
   }
 
   /**
@@ -389,12 +432,21 @@ export class FinanceService {
           id: { in: expenseIds },
           projectId,
           billable: true,
+          status: 'APPROVED',
         },
         include: { user: true },
       });
 
       if (expenses.length !== expenseIds.length) {
-        throw new BadRequestException('Some expenses not found or not billable');
+        throw new BadRequestException('Some expenses were not found, not approved, or not billable');
+      }
+
+      const alreadyInvoiced = await tx.invoiceLine.findMany({
+        where: { expenseId: { in: expenseIds } },
+        select: { expenseId: true },
+      });
+      if (alreadyInvoiced.length > 0) {
+        throw new BadRequestException('Some expenses are already linked to an invoice');
       }
 
       const totalAmount = expenses.reduce(
@@ -406,7 +458,7 @@ export class FinanceService {
         0,
       );
 
-      const invoiceNumber = `INV-${Date.now()}`;
+      const invoiceNumber = this.documentNumber("INV");
 
       // Create invoice
       const invoice = await tx.customerInvoice.create({

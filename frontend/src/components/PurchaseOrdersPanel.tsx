@@ -40,7 +40,8 @@ export function PurchaseOrdersPanel({ projectId }: { projectId?: string }) {
     mutationFn: (poId: string) => vendorBillsApi.createFromPo(poId, {}).then((r) => r.data),
     onSuccess: (bill) => {
       qc.invalidateQueries({ queryKey: ["finance:vendor-bills", projectId] })
-      if (bill?.id) navigate(`/vendor-bill/view/${bill.id}`)
+      const vendorBillId = bill?.vendorBill?.id ?? bill?.id
+      if (vendorBillId) navigate(`/vendor-bill/view/${vendorBillId}`)
     },
   })
 

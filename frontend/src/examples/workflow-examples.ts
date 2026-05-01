@@ -3,7 +3,7 @@
  * This shows how to integrate the backend APIs into your frontend
  */
 
-import { apiClient } from '@/api/client';
+import apiClient from '@/api/client';
 
 // ============================================================================
 // SCENARIO 8.1: Fixed-Price Project with Milestones

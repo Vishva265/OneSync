@@ -52,9 +52,11 @@ export function ProjectAnalyticsPanel({ projectId, project }: Props) {
 
     const loggedHours = (timesheets as any[]).reduce((s, t) => s + toNum(t.durationHours), 0)
 
-    const revenue = toNum(financials?.revenue || 0)
+    const recognizedRevenue = toNum(financials?.revenue || 0)
+    const salesOrderTotal = toNum(financials?.salesOrderTotal || 0)
+    const revenue = toNum(financials?.expectedRevenue ?? Math.max(recognizedRevenue, salesOrderTotal))
     const cost = toNum(financials?.cost || 0)
-    const profit = toNum(financials?.profit || revenue - cost)
+    const profit = toNum(financials?.expectedProfit ?? financials?.profit ?? revenue - cost)
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0
 
     const budget = toNum(project?.budgetAmount ?? 0)
@@ -156,10 +158,10 @@ export function ProjectAnalyticsPanel({ projectId, project }: Props) {
 
         <Card className="rounded-xl shadow-sm border border-gray-100">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-gray-600">Profit</CardTitle>
+            <CardTitle className="text-sm text-gray-600">Projected profit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className={`text-2xl font-bold ${kpis.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
               {(kpis.profit/1000).toFixed(1)}K
             </div>
             <div className="text-xs text-gray-500">{kpis.margin.toFixed(1)}% margin</div>

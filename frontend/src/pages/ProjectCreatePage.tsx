@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 type UserLite = { id: string; fullName?: string; email?: string; role?: string }
-type Status = "ACTIVE" | "DRAFT"
+type Status = "PLANNING" | "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED"
 
 export default function ProjectCreatePage() {
   const navigate = useNavigate()
@@ -49,7 +49,7 @@ export default function ProjectCreatePage() {
     const e: Record<string, string> = {}
     if (!name.trim()) e.name = "Project name is required"
     if (!managerId) e.managerId = "Please select a manager"
-    if (budgetAmount !== "" && Number(budgetAmount) < 0) e.budgetAmount = "Budget must be ≥ 0"
+    if (budgetAmount !== "" && Number(budgetAmount) < 0) e.budgetAmount = "Budget must be >= 0"
     if (startDate && dueDate && new Date(dueDate) < new Date(startDate)) {
       e.dates = "Due date cannot be earlier than start date"
     }
@@ -214,8 +214,11 @@ export default function ProjectCreatePage() {
                     value={status}
                     onChange={(e) => setStatus(e.target.value as Status)}
                   >
+                    <option value="PLANNING">PLANNING</option>
                     <option value="ACTIVE">ACTIVE</option>
-                    <option value="DRAFT">DRAFT</option>
+                    <option value="ON_HOLD">ON_HOLD</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="ARCHIVED">ARCHIVED</option>
                   </select>
                 </div>
 

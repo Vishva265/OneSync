@@ -17,6 +17,7 @@ export interface Project {
   startDate: string
   endDate?: string
   budgetAmount?: number
+  defaultHourlyRate?: number
   currency: string
   projectManager?: User
   teamMembers?: User[]
@@ -49,6 +50,8 @@ export interface Timesheet {
   status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
   invoiced: boolean
   notes?: string
+  user?: User
+  project?: Project
 }
 
 export interface Expense {
@@ -117,6 +120,7 @@ export interface ProjectFinancials {
   currency: string
   revenue: number
   salesOrderTotal: number
+  expectedRevenue?: number
   cost: number
   timesheetCost: number
   expenseCost: number
@@ -124,6 +128,10 @@ export interface ProjectFinancials {
   purchaseOrderTotal: number
   profit: number
   profitMargin: number
+  expectedProfit?: number
+  expectedProfitMargin?: number
+  recognizedProfit?: number
+  recognizedProfitMargin?: number
   budgetAmount: number
   budgetUsed: number
   budgetRemaining: number

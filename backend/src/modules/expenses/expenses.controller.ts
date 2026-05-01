@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Query } from "@nestjs/common"
-import { ApiTags, ApiBearerAuth } from "@nestjs/swagger"
+import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common"
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger"
 import { JwtAuthGuard } from "@/common/guards/jwt.guard"
-import  { ExpensesService } from "./expenses.service"
+import { ExpensesService } from "./expenses.service"
 
 @ApiTags("Expenses")
 @ApiBearerAuth()
@@ -11,40 +11,52 @@ export class ExpensesController {
   constructor(private expensesService: ExpensesService) {}
 
   @Get()
-  async findAll(@Query() query: any) {
+  async findAll(@Query() query: any, @Req() req: any) {
     const filters: any = {}
     if (query.project) filters.projectId = query.project
+    if (query.projectId) filters.projectId = query.projectId
+    if (query.user) filters.userId = query.user
     if (query.status) filters.status = query.status
-    return this.expensesService.findAll(filters)
+    return this.expensesService.findAll(filters, req.user)
   }
 
-  @Get('pending')
-  async getPendingExpenses(@Query('projectId') projectId?: string) {
-    return this.expensesService.getPendingExpenses(projectId);
+  @Get("pending")
+  async getPendingExpenses(@Query("projectId") projectId: string | undefined, @Req() req: any) {
+    return this.expensesService.getPendingExpenses(projectId, req.user)
   }
 
-  @Get('project/:projectId')
-  async getByProject(@Param('projectId') projectId: string) {
-    return this.expensesService.getByProject(projectId);
+  @Get("project/:projectId")
+  async getByProject(@Param("projectId") projectId: string, @Req() req: any) {
+    return this.expensesService.getByProject(projectId, req.user)
+  }
+
+  @Get(":id")
+  async getById(@Param("id") id: string, @Req() req: any) {
+    return this.expensesService.findById(id, req.user)
   }
 
   @Post()
-  async create(@Body() body: any) {
-    return this.expensesService.create(body);
+  async create(@Body() body: any, @Req() req: any) {
+    return this.expensesService.create(body, req.user)
   }
 
-  @Put(':id/approve')
-  async approve(@Param('id') id: string) {
-    return this.expensesService.approve(id);
+  @Put(":id")
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    return this.expensesService.update(id, body, req.user)
   }
 
-  @Put(':id/reject')
-  async reject(@Param('id') id: string, @Body() body: { reason?: string }) {
-    return this.expensesService.reject(id, body.reason);
+  @Put(":id/approve")
+  async approve(@Param("id") id: string, @Req() req: any) {
+    return this.expensesService.approve(id, req.user)
   }
 
-  @Put(':id/reimburse')
-  async reimburse(@Param('id') id: string) {
-    return this.expensesService.reimburse(id);
+  @Put(":id/reject")
+  async reject(@Param("id") id: string, @Body() body: { reason?: string }, @Req() req: any) {
+    return this.expensesService.reject(id, body.reason, req.user)
+  }
+
+  @Put(":id/reimburse")
+  async reimburse(@Param("id") id: string, @Req() req: any) {
+    return this.expensesService.reimburse(id, req.user)
   }
 }

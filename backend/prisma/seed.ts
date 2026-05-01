@@ -30,7 +30,7 @@ async function main() {
   const adminPassword = await bcrypt.hash("admin@123", 10)
   const admin = await prisma.user.create({
     data: {
-      email: "admin@onesync.com",
+      email: "admin@onesync.local",
       passwordHash: adminPassword,
       fullName: "Admin User",
       role: "ADMIN",

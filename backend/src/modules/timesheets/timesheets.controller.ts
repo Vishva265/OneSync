@@ -1,6 +1,5 @@
-// src/modules/timesheets/timesheets.controller.ts
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Req, Query } from "@nestjs/common"
-import { ApiTags, ApiBearerAuth } from "@nestjs/swagger"
+import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common"
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger"
 import { JwtAuthGuard } from "@/common/guards/jwt.guard"
 import { TimesheetsService } from "./timesheets.service"
 
@@ -17,39 +16,31 @@ export class TimesheetsController {
     if (query.user) filters.userId = query.user
     if (query.project) filters.projectId = query.project
     if (query.status) filters.status = query.status
-
-    // Optional: default TEAM_MEMBER to their own timesheets if no user filter supplied
-    if (!filters.userId && req?.user?.role === "TEAM_MEMBER") {
-      filters.userId = req.user.userId ?? req.user.id ?? req.user.sub
-    }
-
-    return this.timesheetsService.findAll(filters)
+    return this.timesheetsService.findAll(filters, req.user)
   }
 
   @Get(":id")
-  async findById(@Param("id") id: string) {
-    return this.timesheetsService.findById(id)
+  async findById(@Param("id") id: string, @Req() req: any) {
+    return this.timesheetsService.findById(id, req.user)
   }
 
   @Post()
   async create(@Req() req: any, @Body() body: any) {
-    const userId = req?.user?.userId ?? req?.user?.id ?? req?.user?.sub
-    return this.timesheetsService.create(body, userId)
+    return this.timesheetsService.create(body, req.user)
   }
 
   @Put(":id")
-  async update(@Param("id") id: string, @Body() body: any) {
-    // TODO: implement real update
-    return this.timesheetsService.findById(id)
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    return this.timesheetsService.update(id, body, req.user)
   }
 
   @Put(":id/approve")
-  async approve(@Param("id") id: string) {
-    return this.timesheetsService.approve(id)
+  async approve(@Param("id") id: string, @Req() req: any) {
+    return this.timesheetsService.approve(id, req.user)
   }
 
   @Put(":id/reject")
-  async reject(@Param("id") id: string) {
-    return this.timesheetsService.reject(id)
+  async reject(@Param("id") id: string, @Req() req: any) {
+    return this.timesheetsService.reject(id, req.user)
   }
 }

@@ -1,12 +1,23 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { timesheetsApi } from "@/api/timesheets"
-import type { Timesheet } from "@/types"
+import { projectsApi } from "@/api/projects"
+import { tasksApi } from "@/api/tasks"
+import { usersApi } from "@/api/users"
+import type { Project, Task, Timesheet, User } from "@/types"
 import { CalendarDays, Clock3, DollarSign, FileCheck2, Filter, Plus, ReceiptText } from "lucide-react"
 
 const num = (value: any) => {
   const parsed = Number(value)
   return isFinite(parsed) ? parsed : 0
+}
+
+const DEFAULT_HOURLY_RATE = 50
+
+function todayInputValue() {
+  const date = new Date()
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+  return date.toISOString().slice(0, 10)
 }
 
 function formatCurrency(value: any) {
@@ -32,6 +43,12 @@ function StatusBadge({ status }: { status?: string }) {
           : "bg-[#fef9c3] text-[#854d0e]"
 
   return <span className={`rounded-full px-[10px] py-[3px] text-[11px] font-medium ${classes}`}>{normalized}</span>
+}
+
+function getProjectMembers(project?: Project) {
+  return ((project?.teamMembers || []) as Array<User | { user?: User }>)
+    .map((member) => ("user" in member ? member.user : member))
+    .filter(Boolean) as User[]
 }
 
 function KpiCard({
@@ -65,10 +82,11 @@ function KpiCard({
 export function TimesheetsPage() {
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<{ user?: string; project?: string; status?: string }>({})
+  const [formError, setFormError] = useState<string | null>(null)
   const [draft, setDraft] = useState<Partial<Timesheet>>({
     billable: true,
     durationHours: 1,
-    hourlyRate: 0,
+    workDate: todayInputValue(),
   })
 
   const { data: timesheets = [], isLoading } = useQuery({
@@ -76,11 +94,70 @@ export function TimesheetsPage() {
     queryFn: async () => (await timesheetsApi.getAll(filters as any)).data,
   })
 
+  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => (await projectsApi.getAll()).data,
+  })
+
+  const { data: me, isLoading: meLoading } = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => (await usersApi.getMe()).data as User,
+  })
+
+  const visibleLogProjects = useMemo(() => {
+    const currentUserId = me?.id
+    const role = String(me?.role || "").toUpperCase()
+    if (!currentUserId) return []
+    if (role === "ADMIN") return projects as Project[]
+
+    return (projects as Project[]).filter((project) => {
+      const isManager = project.projectManagerId === currentUserId || project.projectManager?.id === currentUserId
+      const isMember = getProjectMembers(project).some((member) => member.id === currentUserId)
+      return isManager || isMember
+    })
+  }, [projects, me?.id, me?.role])
+
+  const selectedProject = useMemo(
+    () => visibleLogProjects.find((project) => project.id === draft.projectId),
+    [visibleLogProjects, draft.projectId],
+  )
+
+  const { data: projectTasks = [], isLoading: tasksLoading } = useQuery({
+    queryKey: ["tasks", draft.projectId],
+    queryFn: async () => (await tasksApi.getByProject(draft.projectId!)).data,
+    enabled: Boolean(draft.projectId),
+  })
+
+  useEffect(() => {
+    const selectedIsVisible = visibleLogProjects.some((project) => project.id === draft.projectId)
+    if (selectedIsVisible) return
+
+    setDraft((current) => ({
+      ...current,
+      projectId: visibleLogProjects[0]?.id,
+      taskId: undefined,
+    }))
+  }, [draft.projectId, visibleLogProjects])
+
+  const automaticHourlyRate = useMemo(
+    () => num(selectedProject?.defaultHourlyRate) || num(me?.defaultHourlyRate) || DEFAULT_HOURLY_RATE,
+    [selectedProject?.defaultHourlyRate, me?.defaultHourlyRate],
+  )
+
   const createMutation = useMutation({
     mutationFn: (payload: Partial<Timesheet>) => timesheetsApi.create(payload),
     onSuccess: () => {
-      setDraft({ billable: true, durationHours: 1, hourlyRate: 0 })
+      setFormError(null)
+      setDraft((current) => ({
+        projectId: current.projectId,
+        billable: true,
+        durationHours: 1,
+        workDate: todayInputValue(),
+      }))
       queryClient.invalidateQueries({ queryKey: ["timesheets"] })
+    },
+    onError: (error: any) => {
+      setFormError(error.response?.data?.message || error.message || "Failed to log time")
     },
   })
 
@@ -95,12 +172,27 @@ export function TimesheetsPage() {
 
   const clearFilters = () => setFilters({})
 
+  const hasSelectedProject = visibleLogProjects.some((project) => project.id === draft.projectId)
+  const canSubmit = Boolean(hasSelectedProject && draft.workDate && num(draft.durationHours) > 0 && !createMutation.isPending)
+
   const submitQuickLog = () => {
+    setFormError(null)
+    if (!draft.projectId) {
+      setFormError("Select a project before logging time.")
+      return
+    }
+    if (!draft.workDate) {
+      setFormError("Choose a work date before logging time.")
+      return
+    }
+    if (num(draft.durationHours) <= 0) {
+      setFormError("Hours must be greater than zero.")
+      return
+    }
     createMutation.mutate({
       ...draft,
       billable: !!draft.billable,
       durationHours: num(draft.durationHours),
-      hourlyRate: num(draft.hourlyRate),
     } as Partial<Timesheet>)
   }
 
@@ -148,7 +240,7 @@ export function TimesheetsPage() {
             <button
               type="button"
               onClick={submitQuickLog}
-              disabled={createMutation.isPending}
+              disabled={!canSubmit}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-medium text-[#1a3c6e] transition hover:bg-[#f0f4fa] disabled:cursor-wait disabled:opacity-70"
             >
               <Plus className="h-4 w-4" />
@@ -197,23 +289,41 @@ export function TimesheetsPage() {
 
             <div className="grid gap-4 p-5">
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#64748b]">Project ID</label>
-                <input
-                  placeholder="Project ID"
+                <label className="mb-1 block text-xs font-medium text-[#64748b]">Project</label>
+                <select
                   className="h-10 w-full rounded-lg border-[1.5px] border-[#d1d5db] bg-white px-3 text-sm outline-none transition focus:border-[#1a3c6e] focus:shadow-[0_0_0_3px_rgba(26,60,110,0.12)]"
                   value={draft.projectId || ""}
-                  onChange={(event) => setDraft({ ...draft, projectId: event.target.value })}
-                />
+                  onChange={(event) =>
+                    setDraft({ ...draft, projectId: event.target.value || undefined, taskId: undefined })
+                  }
+                  disabled={projectsLoading || meLoading || visibleLogProjects.length === 0}
+                >
+                  <option value="">
+                    {projectsLoading || meLoading ? "Loading projects..." : "Select a project"}
+                  </option>
+                  {visibleLogProjects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.code} - {project.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#64748b]">Task ID</label>
-                <input
-                  placeholder="Optional"
+                <label className="mb-1 block text-xs font-medium text-[#64748b]">Task</label>
+                <select
                   className="h-10 w-full rounded-lg border-[1.5px] border-[#d1d5db] bg-white px-3 text-sm outline-none transition focus:border-[#1a3c6e] focus:shadow-[0_0_0_3px_rgba(26,60,110,0.12)]"
                   value={draft.taskId || ""}
                   onChange={(event) => setDraft({ ...draft, taskId: event.target.value || undefined })}
-                />
+                  disabled={!draft.projectId || tasksLoading}
+                >
+                  <option value="">{tasksLoading ? "Loading tasks..." : "No task / general work"}</option>
+                  {(projectTasks as Task[]).map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.title}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -241,15 +351,10 @@ export function TimesheetsPage() {
 
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748b]">Hourly rate</label>
-                  <input
-                    type="number"
-                    min={0}
-                    className="h-10 w-full rounded-lg border-[1.5px] border-[#d1d5db] bg-white px-3 text-sm outline-none transition focus:border-[#1a3c6e] focus:shadow-[0_0_0_3px_rgba(26,60,110,0.12)]"
-                    placeholder="Hourly rate"
-                    value={draft.hourlyRate || 0}
-                    onChange={(event) => setDraft({ ...draft, hourlyRate: Number(event.target.value) })}
-                  />
+                  <label className="mb-1 block text-xs font-medium text-[#64748b]">Auto rate</label>
+                  <div className="flex h-10 w-full items-center rounded-lg border-[1.5px] border-[#d1d5db] bg-[#f8fafc] px-3 text-sm font-medium text-[#0f172a]">
+                    {formatCurrency(automaticHourlyRate)}/h
+                  </div>
                 </div>
                 <label className="flex h-10 items-center gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 text-sm text-[#0f172a]">
                   <input
@@ -261,10 +366,31 @@ export function TimesheetsPage() {
                 </label>
               </div>
 
+              <div>
+                <label className="mb-1 block text-xs font-medium text-[#64748b]">Notes</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-lg border-[1.5px] border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none transition focus:border-[#1a3c6e] focus:shadow-[0_0_0_3px_rgba(26,60,110,0.12)]"
+                  placeholder="What did you work on?"
+                  value={draft.notes || ""}
+                  onChange={(event) => setDraft({ ...draft, notes: event.target.value })}
+                />
+              </div>
+
+              {formError ? (
+                <div className="rounded-lg border border-[#fecaca] bg-[#fee2e2] px-3 py-2 text-sm text-[#b91c1c]">
+                  {formError}
+                </div>
+              ) : visibleLogProjects.length === 0 && !projectsLoading && !meLoading ? (
+                <div className="rounded-lg border border-[#fef3c7] bg-[#fffbeb] px-3 py-2 text-sm text-[#854d0e]">
+                  You are not assigned to any project that allows time logging.
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1a3c6e] px-5 text-sm font-medium text-white transition hover:bg-[#15325d] disabled:cursor-wait disabled:opacity-70"
-                disabled={createMutation.isPending}
+                disabled={!canSubmit}
                 onClick={submitQuickLog}
               >
                 <Plus className="h-4 w-4" />

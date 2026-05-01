@@ -1,12 +1,11 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards } from "@nestjs/common"
-import { ApiTags, ApiBearerAuth } from "@nestjs/swagger"
+import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common"
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger"
 import { JwtAuthGuard } from "@/common/guards/jwt.guard"
 import { TasksService } from "./tasks.service"
 import { $Enums } from "@prisma/client"
 import { IsEnum } from "class-validator"
 import { CreateTaskDto } from "./dto/create-task.dto"
 
-// DTO for moving task
 class MoveTaskDto {
   @IsEnum($Enums.TaskState)
   state: $Enums.TaskState
@@ -41,18 +40,17 @@ export class TasksController {
   }
 
   @Post("projects/:projectId/tasks")
-  async create(@Param("projectId") projectId: string, @Body() data: CreateTaskDto) {
-    console.log("📤 Incoming create-task:", data)
-    return this.tasksService.create(projectId, data)
+  async create(@Param("projectId") projectId: string, @Body() data: CreateTaskDto, @Req() req: any) {
+    return this.tasksService.create(projectId, data, req.user)
   }
 
   @Put("tasks/:id")
-  async update(@Param("id") id: string, @Body() body: any) {
-    return this.tasksService.update(id, body)
+  async update(@Param("id") id: string, @Body() body: any, @Req() req: any) {
+    return this.tasksService.update(id, body, req.user)
   }
 
   @Post("tasks/:id/move")
-  async moveTask(@Param("id") id: string, @Body() body: MoveTaskDto) {
-    return this.tasksService.moveTask(id, body.state)
+  async moveTask(@Param("id") id: string, @Body() body: MoveTaskDto, @Req() req: any) {
+    return this.tasksService.moveTask(id, body.state, req.user)
   }
 }

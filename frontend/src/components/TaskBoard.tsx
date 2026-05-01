@@ -11,7 +11,7 @@ export function TaskBoard({
   teamMembers,
 }: {
   projectId: string
-  teamMembers?: User[]
+  teamMembers?: Array<User | { user: User }>
 }) {
   const queryClient = useQueryClient()
   const columns: Task["state"][] = ["NEW", "IN_PROGRESS", "BLOCKED", "DONE"]
@@ -36,9 +36,11 @@ export function TaskBoard({
     queryKey: ["users"],
     queryFn: async () => (await usersApi.getAll()).data,
   })
-  const assignableUsers: User[] = (users as User[]) ?? []
+  const projectUsers = (teamMembers || [])
+    .map((member: any) => member.user || member)
+    .filter((user: Partial<User>) => !!user.id) as User[]
+  const assignableUsers: User[] = projectUsers.length ? projectUsers : ((users as User[]) ?? [])
 
-  const [assigneeFilter, setAssigneeFilter] = useState("")
   const [dragTaskId, setDragTaskId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<Task["state"] | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -134,10 +136,6 @@ export function TaskBoard({
 
   // Helpers
   const userLabel = (u: Partial<User>) => u.fullName || (u as any).name || u.email || "Unknown"
-  const filteredUsers = assignableUsers.filter((u) =>
-    userLabel(u).toLowerCase().includes(assigneeFilter.toLowerCase()),
-  )
-
   function handleAssigneeChange(taskId: string, newAssigneeId: string) {
     if (!canChangeAssignee) return
     updateMutation.mutate({
@@ -227,7 +225,7 @@ export function TaskBoard({
               <option value="" disabled>
                 Select assignee
               </option>
-              {filteredUsers.map((u) => (
+              {assignableUsers.map((u) => (
                 <option key={u.id} value={u.id}>
                   {userLabel(u)} {(u as any).role ? `(${(u as any).role})` : ""}
                 </option>

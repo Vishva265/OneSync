@@ -196,23 +196,8 @@ export function DashboardPage() {
               </div>
             </div>
 
-            {canShowAdminBits ? (
-              <button
-                type="button"
-                onClick={() => navigate("/projects/new")}
-                className="relative z-10 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-medium text-[#1a3c6e] transition hover:bg-[#f0f4fa]"
-              >
-                <Plus className="h-4 w-4" />
-                New project
-              </button>
-            ) : meLoading ? (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 cursor-wait items-center justify-center rounded-lg border border-[#e2e8f0] px-5 text-sm font-medium text-[#64748b]"
-              >
-                Loading...
-              </button>
+            {meLoading ? (
+              <div className="relative z-10 h-10 text-sm text-white/70">Loading...</div>
             ) : null}
           </div>
         </section>
